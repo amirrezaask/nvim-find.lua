@@ -48,7 +48,7 @@ function Fuzzy.new(opts)
 	function opts.update(opts)
 		start = vim.loop.hrtime()
 		opts.results = opts.sort(opts)
-		local sort_elapsed = (vim.loop.hrtime() - start) / 1e6
+		opts.sort_elapsed = (vim.loop.hrtime() - start) / 1e6
 		for i, v in ipairs(opts.results) do
 			opts.results[i].display = opts.transformer(v)
 		end
@@ -60,12 +60,13 @@ function Fuzzy.new(opts)
 		end
 
 		table.insert(opts.buf_lines, opts.query) -- adds a line for prompt
+		print(#opts.results, opts.source_elapsed, opts.sort_elapsed)
 		opts:draw()
 	end
 
 	function opts.draw(opts)
 		if not opts.selected_item then
-			opts.selected_item = 1
+			opts.selected_item = #opts.results - 2
 		end
 
 		if opts.selected_item < 0 then
@@ -88,8 +89,6 @@ function Fuzzy.new(opts)
 
 		vim.api.nvim_win_set_cursor(win, { #opts.buf_lines, #opts.query + 1 })
 
-		-- print(string.format("%x %f", #opts.results, opts.source_elapsed or 0))
-		print(opts.selected_item, opts.query)
 		vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
 	end
 
@@ -106,6 +105,8 @@ function Fuzzy.new(opts)
 
 		vim.keymap.set({ "n", "i" }, "<CR>", function()
 			local item = opts.results[opts.selected_item + 2]
+			vim.cmd([[ quit! ]])
+			vim.print(item)
 			opts.actions.enter(item)
 		end, { buffer = buf })
 	end
@@ -144,7 +145,7 @@ Fuzzy.new({
 	source = function(opts)
 		local start = vim.loop.hrtime()
 		if not opts.files_fetched then
-			find(vim.fn.expand("~/.dotfiles"), function(res)
+			find(vim.fn.expand("%:p:h"), function(res)
 				local results_came = (vim.loop.hrtime() - start) / 1e6
 				opts.results = {}
 				for _, v in ipairs(res) do
@@ -168,7 +169,7 @@ Fuzzy.new({
 	actions = {
 		---@param e Fuzzy.Entry
 		enter = function(e)
-			print(e.actual)
+			vim.cmd.edit(e.actual)
 		end,
 	},
 })
