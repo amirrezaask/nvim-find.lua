@@ -46,9 +46,6 @@ function Fuzzy.new(opts)
 	})
 
 	function opts.update(opts)
-		start = vim.loop.hrtime()
-		opts.results = opts.sort(opts)
-		opts.sort_elapsed = (vim.loop.hrtime() - start) / 1e6
 		for i, v in ipairs(opts.results) do
 			opts.results[i].display = opts.transformer(v)
 		end
@@ -105,6 +102,7 @@ function Fuzzy.new(opts)
 
 		vim.keymap.set({ "n", "i" }, "<CR>", function()
 			local item = opts.results[opts.selected_item + 2]
+			vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 			vim.cmd([[ quit! ]])
 			vim.print(item)
 			opts.actions.enter(item)
@@ -138,8 +136,8 @@ function Fuzzy.new(opts)
 	opts:setup_autocmds()
 	opts:source()
 end
-local find = require("nvim-fuzzy.find")
 
+local find = require("nvim-fuzzy.find")
 Fuzzy.new({
 	files_fetched = false,
 	source = function(opts)
@@ -154,10 +152,16 @@ Fuzzy.new({
 				opts.source_elapsed = (vim.loop.hrtime() - start) / 1e6
 				opts.files_fetched = true
 				vim.schedule(function()
+					start = vim.loop.hrtime()
+					opts.results = opts.sort(opts)
+					opts.sort_elapsed = (vim.loop.hrtime() - start) / 1e6
 					opts:update()
 				end)
 			end)
 		else
+			start = vim.loop.hrtime()
+			opts.results = opts.sort(opts)
+			opts.sort_elapsed = (vim.loop.hrtime() - start) / 1e6
 			opts:update()
 		end
 	end,
