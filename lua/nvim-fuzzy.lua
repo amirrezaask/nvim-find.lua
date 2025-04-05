@@ -93,47 +93,41 @@ function new_fuzzy_finder(input)
 
 	function opts.update(opts)
 		local prev = opts.user_input
-
 		local prompt_line = vim.api.nvim_get_current_line()
 
 		opts.user_input = prompt_line:sub(#PROMPT + 1)
 		opts.scores = {}
 		opts.buf_lines = {}
+		opts.source_scored = {}
 
-		if prev ~= opts.user_input then
-			local start = vim.uv.hrtime()
-			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
-			local source_scored = {}
-
-			--TODO(amirreza): there should be a better way than 3 loops ...
-
-			for _, v in ipairs(opts.source) do
-				table.insert(source_scored, { word = v, score = 0 })
-			end
-
-			for _, v in ipairs(scores or {}) do
-				source_scored[v[1]].score = v[3]
-			end
-
-			table.sort(source_scored, function(a, b) return (a.score or 0) < (b.score or 0) end)
-
-			for _, v in ipairs(source_scored) do
-				table.insert(opts.buf_lines, string.format("%X %s", v.score, v.word))
-			end
-
-			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
-			opts.source_scored = source_scored
-
-			print("Entries", #opts.source, "Cost", sort_elapsed)
-
-			vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
-
-			vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
+		for _, v in ipairs(opts.source) do
+			table.insert(opts.source_scored, { word = v, score = 0 })
 		end
 
-		local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
+		local start = vim.uv.hrtime()
+		if prev ~= opts.user_input then
+			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+			--TODO(amirreza): there should be a better way than 3 loops ...
+			for _, v in ipairs(scores or {}) do
+				opts.source_scored[v[1]].score = v[3]
+			end
+		end
 
-		print("actual_lines", actual_lines, "selected", opts.selected_item)
+		table.sort(opts.source_scored, function(a, b) return (a.score or 0) < (b.score or 0) end)
+
+		for _, v in ipairs(opts.source_scored) do
+			table.insert(opts.buf_lines, string.format("%X %s", v.score, v.word))
+		end
+
+		local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+
+		print("Entries", #opts.source, "Cost", sort_elapsed, "ms")
+
+		vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
+
+		vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
+
+		local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
 
 		if opts.selected_item < 1 then opts.selected_item = actual_lines - 1 end
 
