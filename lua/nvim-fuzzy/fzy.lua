@@ -260,5 +260,5 @@ function fzy.get_implementation_name() return "lua" end
 return function(query, collection)
 	if query == "" then return nil end
 	local result = fzy.filter(query, collection)
-	return vim.tbl_map(function(e) return { e[1], e[3] } end, result)
+	return result
 end

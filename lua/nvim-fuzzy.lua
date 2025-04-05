@@ -102,22 +102,34 @@ function new_fuzzy_finder(input)
 
 		if prev ~= opts.user_input then
 			local start = vim.uv.hrtime()
-			opts.scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
-			local results = {}
-			if opts.scores ~= nil then
-				for _, v in ipairs(opts.scores) do
-				end
+			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+			local source_scored = {}
+
+			--TODO(amirreza): there should be a better way than 3 loops ...
+
+			for _, v in ipairs(opts.source) do
+				table.insert(source_scored, { word = v, score = 0 })
 			end
+
+			for _, v in ipairs(scores or {}) do
+				source_scored[v[1]].score = v[3]
+			end
+
+			table.sort(source_scored, function(a, b) return (a.score or 0) < (b.score or 0) end)
+
+			for _, v in ipairs(source_scored) do
+				table.insert(opts.buf_lines, string.format("%X %s", v.score, v.word))
+			end
+
 			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
-			-- print(#opts.source, "sort/ms", sort_elapsed)
+			print("Entries", #opts.source, "Cost", sort_elapsed, "Selected", opts.selected_item)
 
 			vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
 
 			vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
 		end
 
-		-- vim.print(#opts.buf_lines, opts.selected_item)
 		if not opts.selected_item then opts.selected_item = #opts.buf_lines - 1 end
 
 		-- if #opts.buf_lines > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 1 end
@@ -162,7 +174,7 @@ end
 
 -- new_fuzzy_finder { { "ab.go", "ba.go", "cd.go", "main.go", "file.go", "repo.go", "db.go" }, function(e) vim.print(e) end }
 
-call_find(vim.fn.expand("~/src/doctor/tweety"), function(files)
+call_find(vim.fn.expand("~/src/doctor/core"), function(files)
 	vim.schedule(function()
 		new_fuzzy_finder { files, function(e) vim.print(e) end }
 	end)
