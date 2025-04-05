@@ -1,4 +1,5 @@
 -- The lua implementation of the fzy string matching algorithm
+-- CREDITS TO https://github.com/swarn/fzy-lua
 
 local SCORE_GAP_LEADING = -0.005
 local SCORE_GAP_TRAILING = -0.005

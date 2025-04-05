@@ -47,6 +47,8 @@ local function call_find(path, callback)
 	end)
 end
 
+local PROMPT = "> "
+
 ---@class FuzzyFinder.Input
 ---@field [1] table<string>
 ---@field [2] func(selected: string)
@@ -71,10 +73,11 @@ function new_fuzzy_finder(input)
 	local row = math.floor(vim.o.lines * 0.3)
 	local col = math.floor(vim.o.columns * 0.5)
 	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
+	vim.fn.prompt_setprompt(buf, PROMPT)
 	local width = math.floor(vim.o.columns * 0.7)
 	local height = math.floor(vim.o.lines * 0.8)
 	local win = vim.api.nvim_open_win(buf, true, {
-
 		relative = "editor",
 		width = width,
 		height = height,
@@ -87,60 +90,59 @@ function new_fuzzy_finder(input)
 	vim.cmd [[ startinsert ]]
 
 	opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
-	function opts.highlight(opts)
-		vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
-		vim.api.nvim_win_set_cursor(win, { #opts.buf_lines, #opts.user_input + 1 })
-
-		vim.hl.range(buf, opts.hl_ns, "Visual", { opts.selected_item, 0 }, { opts.selected_item, width })
-	end
-
-	function opts.draw(opts)
+	function opts.update(opts)
 		local prev = opts.user_input
-		opts.user_input = vim.api.nvim_get_current_line()
-		if opts.user_input ~= prev then
-			local start = vim.uv.hrtime()
-			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
-			if scores ~= nil then
-				table.sort(scores, function(a, b) return a[2] < b[2] end) -- ascending
-				opts.buf_lines = {}
-				for _, v in ipairs(scores) do
-					table.insert(opts.buf_lines, string.format("%02X %s", v[2] or 0, opts.source[v[1]]))
-				end
 
-				table.insert(opts.buf_lines, opts.user_input) -- adds a line for prompt
+		local prompt_line = vim.api.nvim_get_current_line()
+
+		opts.user_input = prompt_line:sub(#PROMPT + 1)
+		opts.scores = {}
+		opts.buf_lines = {}
+
+		if prev ~= opts.user_input then
+			local start = vim.uv.hrtime()
+			opts.scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+			if opts.scores ~= nil then
+				table.sort(opts.scores, function(a, b) return a[2] < b[2] end) -- ascending
+				for _, v in ipairs(opts.scores) do
+					table.insert(opts.buf_lines, string.format("%X %s", v[2] or 0, opts.source[v[1]]))
+				end
+			else
+				for _, v in ipairs(opts.source) do
+					table.insert(opts.buf_lines, string.format("%X %s", 0, v))
+				end
 			end
 			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
-			print(#opts.source, "sort/ms", sort_elapsed)
+			-- print(#opts.source, "sort/ms", sort_elapsed)
+
+			vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
+
+			vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
 		end
 
-		if opts.buf_lines == nil then opts.buf_lines = {} end
+		if not opts.selected_item then opts.selected_item = #opts.source - 1 end
 
-		if not opts.selected_item then opts.selected_item = #opts.source - 2 end
+		if #opts.source > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 1 end
 
-		if #opts.source > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 2 end
+		if opts.selected_item < 0 then opts.selected_item = #opts.source - 1 end
 
-		if opts.selected_item < 0 then opts.selected_item = #opts.source - 2 end
+		if opts.selected_item > #opts.source - 1 then opts.selected_item = 0 end
 
-		if opts.selected_item > #opts.source - 2 then opts.selected_item = 0 end
+		vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
-		if #opts.buf_lines == 0 then print("No results, return") end
-
-		if not opts.buf_lines or #opts.buf_lines == 0 then return end
-		vim.api.nvim_buf_set_lines(buf, 0, -1, false, opts.buf_lines)
-
-		opts:highlight()
+		vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
 	end
 
 	vim.keymap.set({ "n", "i" }, "<C-n>", function()
 		opts.selected_item = opts.selected_item + 1
-		opts:highlight()
+		opts:update()
 	end, { buffer = buf })
 
 	vim.keymap.set({ "n", "i" }, "<C-p>", function()
 		opts.selected_item = opts.selected_item - 1
-		opts:highlight()
+		opts:update()
 	end, { buffer = buf })
 
 	vim.keymap.set({ "n", "i" }, "<CR>", function()
@@ -153,14 +155,15 @@ function new_fuzzy_finder(input)
 
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 		buffer = buf,
-		callback = function() opts:draw() end,
+		callback = function() opts:update() end,
 	})
 
-	opts:draw()
+	opts:update()
 end
+
 -- vim.print(require("nvim-fuzzy.fzy")("a", { "a.go", "b.go", "c.go" }))
 
-call_find(vim.fn.expand("~/src/doctor/core"), function(files)
+call_find(vim.fn.expand("~/src/doctor/tweety"), function(files)
 	vim.schedule(function()
 		new_fuzzy_finder { files, function(e) vim.print(e) end }
 	end)
