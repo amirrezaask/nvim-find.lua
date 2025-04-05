@@ -1,13 +1,13 @@
 vim.opt.runtimepath:append("~/src/nvim-fuzzy")
 package.loaded["nvim-fuzzy"] = nil
 package.loaded["nvim-fuzzy.fzy"] = nil
-local uv = vim.loop
+local uv = vim.uv
 
 local MEASURE = function(f)
-	local start = vim.loop.hrtime()
+	local start = vim.uv.hrtime()
 	f()
 
-	return (vim.loop.hrtime() - start) / 1e6
+	return (vim.uv.hrtime() - start) / 1e6
 end
 local function call_find(path, callback)
 	local handle
@@ -98,28 +98,33 @@ function new_fuzzy_finder(input)
 	function opts.draw(opts)
 		local prev = opts.user_input
 		opts.user_input = vim.api.nvim_get_current_line()
-		if opts.user_input ~= prev then 
-            opts.sort_elapsed = MEASURE(function() opts.source = require("nvim-fuzzy.fzy")(opts.user_input, opts.source) end) 
-        end
+		if opts.user_input ~= prev then
+			local start = vim.uv.hrtime()
+			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+			if scores ~= nil then
+				table.sort(scores, function(a, b) return a[2] < b[2] end) -- ascending
+				opts.buf_lines = {}
+				for _, v in ipairs(scores) do
+					table.insert(opts.buf_lines, string.format("%02X %s", v[2] or 0, opts.source[v[1]]))
+				end
 
-		opts.buf_lines = {}
-		for _, v in ipairs(opts.source) do
-			table.insert(opts.buf_lines, v)
+				table.insert(opts.buf_lines, opts.user_input) -- adds a line for prompt
+			end
+			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+
+			print(#opts.source, "sort/ms", sort_elapsed)
 		end
 
-		table.insert(opts.buf_lines, opts.user_input) -- adds a line for prompt
-
-		print(#opts.source, "sort/ms", opts.sort_elapsed)
+		if opts.buf_lines == nil then opts.buf_lines = {} end
 
 		if not opts.selected_item then opts.selected_item = #opts.source - 2 end
 
-		if #opts.source > height and opts.selected_item < #opts.source - height then 
-            opts.selected_item = #opts.source - 2 
-        end
+		if #opts.source > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 2 end
 
 		if opts.selected_item < 0 then opts.selected_item = #opts.source - 2 end
 
 		if opts.selected_item > #opts.source - 2 then opts.selected_item = 0 end
+
 		if #opts.buf_lines == 0 then print("No results, return") end
 
 		if not opts.buf_lines or #opts.buf_lines == 0 then return end
@@ -153,8 +158,9 @@ function new_fuzzy_finder(input)
 
 	opts:draw()
 end
+-- vim.print(require("nvim-fuzzy.fzy")("a", { "a.go", "b.go", "c.go" }))
 
-call_find(vim.fn.expand("~/src/doctor/consultation"), function(files)
+call_find(vim.fn.expand("~/src/doctor/core"), function(files)
 	vim.schedule(function()
 		new_fuzzy_finder { files, function(e) vim.print(e) end }
 	end)
