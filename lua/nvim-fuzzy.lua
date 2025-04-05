@@ -70,7 +70,7 @@ function new_fuzzy_finder(input)
 	opts.on_accept = opts[2]
 	opts.selected_item = #opts.source - 2
 
-	local row = math.floor(vim.o.lines * 0.3)
+	local row = math.floor(vim.o.lines * (2 / 3))
 	local col = math.floor(vim.o.columns * 0.5)
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
@@ -103,14 +103,9 @@ function new_fuzzy_finder(input)
 		if prev ~= opts.user_input then
 			local start = vim.uv.hrtime()
 			opts.scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+			local results = {}
 			if opts.scores ~= nil then
-				table.sort(opts.scores, function(a, b) return a[2] < b[2] end) -- ascending
 				for _, v in ipairs(opts.scores) do
-					table.insert(opts.buf_lines, string.format("%X %s", v[2] or 0, opts.source[v[1]]))
-				end
-			else
-				for _, v in ipairs(opts.source) do
-					table.insert(opts.buf_lines, string.format("%X %s", 0, v))
 				end
 			end
 			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
@@ -122,13 +117,14 @@ function new_fuzzy_finder(input)
 			vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
 		end
 
-		if not opts.selected_item then opts.selected_item = #opts.source - 1 end
+		-- vim.print(#opts.buf_lines, opts.selected_item)
+		if not opts.selected_item then opts.selected_item = #opts.buf_lines - 1 end
 
-		if #opts.source > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 1 end
+		-- if #opts.buf_lines > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 1 end
 
-		if opts.selected_item < 0 then opts.selected_item = #opts.source - 1 end
+		if opts.selected_item < 0 then opts.selected_item = #opts.buf_lines - 1 end
 
-		if opts.selected_item > #opts.source - 1 then opts.selected_item = 0 end
+		if opts.selected_item > #opts.buf_lines - 1 then opts.selected_item = 0 end
 
 		vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
@@ -146,7 +142,8 @@ function new_fuzzy_finder(input)
 	end, { buffer = buf })
 
 	vim.keymap.set({ "n", "i" }, "<CR>", function()
-		local item = opts.source[opts.selected_item + 1]
+		if not opts.scores then return end
+		local item = opts.source[opts.scores[opts.selected_item + 1][1]]
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 		vim.cmd([[ quit! ]])
 		vim.print(item)
@@ -158,10 +155,12 @@ function new_fuzzy_finder(input)
 		callback = function() opts:update() end,
 	})
 
-	opts:update()
+	vim.schedule(function() opts:update() end)
 end
 
 -- vim.print(require("nvim-fuzzy.fzy")("a", { "a.go", "b.go", "c.go" }))
+
+-- new_fuzzy_finder { { "ab.go", "ba.go", "cd.go", "main.go", "file.go", "repo.go", "db.go" }, function(e) vim.print(e) end }
 
 call_find(vim.fn.expand("~/src/doctor/tweety"), function(files)
 	vim.schedule(function()
