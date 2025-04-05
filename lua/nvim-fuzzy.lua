@@ -122,21 +122,22 @@ function new_fuzzy_finder(input)
 			end
 
 			local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+			opts.source_scored = source_scored
 
-			print("Entries", #opts.source, "Cost", sort_elapsed, "Selected", opts.selected_item)
+			print("Entries", #opts.source, "Cost", sort_elapsed)
 
 			vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
 
 			vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
 		end
 
-		if not opts.selected_item then opts.selected_item = #opts.buf_lines - 1 end
+		local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
 
-		-- if #opts.buf_lines > height and opts.selected_item < #opts.source - height then opts.selected_item = #opts.source - 1 end
+		print("actual_lines", actual_lines, "selected", opts.selected_item)
 
-		if opts.selected_item < 0 then opts.selected_item = #opts.buf_lines - 1 end
+		if opts.selected_item < 1 then opts.selected_item = actual_lines - 1 end
 
-		if opts.selected_item > #opts.buf_lines - 1 then opts.selected_item = 0 end
+		if opts.selected_item > actual_lines - 1 then opts.selected_item = 0 end
 
 		vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
@@ -154,8 +155,7 @@ function new_fuzzy_finder(input)
 	end, { buffer = buf })
 
 	vim.keymap.set({ "n", "i" }, "<CR>", function()
-		if not opts.scores then return end
-		local item = opts.source[opts.scores[opts.selected_item + 1][1]]
+		local item = opts.source_scored[opts.selected_item + 1].word
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 		vim.cmd([[ quit! ]])
 		vim.print(item)
@@ -169,10 +169,6 @@ function new_fuzzy_finder(input)
 
 	vim.schedule(function() opts:update() end)
 end
-
--- vim.print(require("nvim-fuzzy.fzy")("a", { "a.go", "b.go", "c.go" }))
-
--- new_fuzzy_finder { { "ab.go", "ba.go", "cd.go", "main.go", "file.go", "repo.go", "db.go" }, function(e) vim.print(e) end }
 
 call_find(vim.fn.expand("~/src/doctor/core"), function(files)
 	vim.schedule(function()
