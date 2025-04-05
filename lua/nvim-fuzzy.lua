@@ -3,6 +3,12 @@ package.loaded["nvim-fuzzy"] = nil
 package.loaded["nvim-fuzzy.fzy"] = nil
 local uv = vim.loop
 
+local MEASURE = function(f)
+	local start = vim.loop.hrtime()
+	f()
+
+	return (vim.loop.hrtime() - start) / 1e6
+end
 local function call_find(path, callback)
 	local handle
 	local stdout = uv.new_pipe(false)
@@ -10,7 +16,7 @@ local function call_find(path, callback)
 	local results = {}
 
 	handle = uv.spawn("find", {
-		args = { path, "-type", "f", "-not", "-path", "**/.git/*" },
+		args = { path, "-type", "f", "-not", "-path", "**/.git/*", "-not", "-path", "**/vendor/**" },
 		stdio = { nil, stdout, stderr },
 	}, function(code, signal)
 		stdout:read_stop()
@@ -60,6 +66,7 @@ function new_fuzzy_finder(input)
 
 	opts.source = opts[1]
 	opts.on_accept = opts[2]
+	opts.selected_item = #opts.source - 2
 
 	local row = math.floor(vim.o.lines * 0.3)
 	local col = math.floor(vim.o.columns * 0.5)
@@ -85,18 +92,16 @@ function new_fuzzy_finder(input)
 
 		vim.api.nvim_win_set_cursor(win, { #opts.buf_lines, #opts.user_input + 1 })
 
-		vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
-	end
-
-	function opts.update()
-		local prev = opts.user_input
-		opts.user_input = vim.api.nvim_get_current_line()
-		-- if #vim.api.nvim_buf_get_lines(buf, 0, -1, false) == #opts.source then opts.user_input = "" end
-		if opts.user_input ~= prev then opts:draw() end
+		vim.hl.range(buf, opts.hl_ns, "Visual", { opts.selected_item, 0 }, { opts.selected_item, width })
 	end
 
 	function opts.draw(opts)
-		opts.source = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
+		local prev = opts.user_input
+		opts.user_input = vim.api.nvim_get_current_line()
+		if opts.user_input ~= prev then 
+            opts.sort_elapsed = MEASURE(function() opts.source = require("nvim-fuzzy.fzy")(opts.user_input, opts.source) end) 
+        end
+
 		opts.buf_lines = {}
 		for _, v in ipairs(opts.source) do
 			table.insert(opts.buf_lines, v)
@@ -104,8 +109,13 @@ function new_fuzzy_finder(input)
 
 		table.insert(opts.buf_lines, opts.user_input) -- adds a line for prompt
 
-		print(#opts.source, opts.source_elapsed, opts.sort_elapsed)
+		print(#opts.source, "sort/ms", opts.sort_elapsed)
+
 		if not opts.selected_item then opts.selected_item = #opts.source - 2 end
+
+		if #opts.source > height and opts.selected_item < #opts.source - height then 
+            opts.selected_item = #opts.source - 2 
+        end
 
 		if opts.selected_item < 0 then opts.selected_item = #opts.source - 2 end
 
@@ -129,7 +139,7 @@ function new_fuzzy_finder(input)
 	end, { buffer = buf })
 
 	vim.keymap.set({ "n", "i" }, "<CR>", function()
-		local item = opts.source[opts.selected_item + 2]
+		local item = opts.source[opts.selected_item + 1]
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 		vim.cmd([[ quit! ]])
 		vim.print(item)
@@ -138,8 +148,10 @@ function new_fuzzy_finder(input)
 
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 		buffer = buf,
-		callback = opts.update,
+		callback = function() opts:draw() end,
 	})
+
+	opts:draw()
 end
 
 call_find(vim.fn.expand("~/src/doctor/consultation"), function(files)
