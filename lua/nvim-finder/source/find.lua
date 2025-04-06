@@ -14,9 +14,6 @@ return function(path, callback)
         stdout:close()
         handle:close()
         if code == 0 then
-            -- for i, v in ipairs(results) do
-            --     results[i] = results[i]:sub(#path + 1)
-            -- end
             callback(results)
         end
     end)
@@ -42,7 +39,7 @@ return function(path, callback)
             local lines = vim.split(data, "\n")
             for _, line in ipairs(lines) do
                 if line ~= "" then
-                    table.insert(results, line)
+                    table.insert(results, { entry = line, score = -math.huge, display = line:sub(#path + 1) })
                 end
             end
         end

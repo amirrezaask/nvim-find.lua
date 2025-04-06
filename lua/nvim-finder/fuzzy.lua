@@ -1,9 +1,9 @@
----@class FuzzyFinder.Input
----@field [1] table<string>
+---@class Finder.FuzzyInput
+---@field [1] table<Finder.Entry>
 ---@field [2] fun(selected: string)
 ---@field prompt string
 ---@function new_fuzzy_finder
----@param input FuzzyFinder.Input
+---@param input Finder.FuzzyInput
 return function(input)
     assert(input, "input is required")
     assert(input[1], "opts[1] source is required, should be a table")
@@ -19,10 +19,6 @@ return function(input)
 
     opts.source = opts[1]
 
-    opts.source_scored = {}
-    for _, v in ipairs(opts.source) do
-        table.insert(opts.source_scored, { entry = v, score = 0 })
-    end
     opts.on_accept = opts[2]
 
     local buf = vim.api.nvim_create_buf(false, true)
@@ -59,16 +55,16 @@ return function(input)
         --TODO(amirreza): there should be a better way than 3 loops ...
         local start = vim.uv.hrtime()
         if prev ~= opts.user_input then
-            opts.source_scored = require("nvim-finder.alg.fzy")(opts.user_input, opts.source_scored)
-            table.sort(opts.source_scored, function(a, b)
+            opts.source = require("nvim-finder.alg.fzy")(opts.user_input, opts.source)
+            table.sort(opts.source, function(a, b)
                 return (a.score) < (b.score)
             end)
         end
 
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
-        for _, v in ipairs(opts.source_scored) do
-            table.insert(opts.buf_lines, string.format("%f %s", v.score, v.entry))
+        for _, v in ipairs(opts.source) do
+            table.insert(opts.buf_lines, string.format("%f %s", v.score, v.display))
         end
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
@@ -81,7 +77,7 @@ return function(input)
             "Cost", sort_elapsed, "ms"
         )
         if opts.selected_item == nil then opts.selected_item = actual_lines - 1 end
-        if opts.selected_item < 1 then
+        if opts.selected_item < 0 then
             opts.selected_item = actual_lines - 1
         end
 
@@ -105,7 +101,7 @@ return function(input)
     end, { buffer = buf })
 
     vim.keymap.set({ "n", "i" }, "<CR>", function()
-        local item = opts.source_scored[opts.selected_item + 1].entry
+        local item = opts.source[opts.selected_item + 1].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         vim.cmd([[ quit! ]])
         vim.print(item)

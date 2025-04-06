@@ -256,11 +256,13 @@ function fzy.get_score_ceiling() return MATCH_MAX_LENGTH * SCORE_MATCH_CONSECUTI
 -- The name of the currently-running implmenetation, "lua" or "native".
 function fzy.get_implementation_name() return "lua" end
 
+---@param query string
+---@param collection table<Finder.Entry>
 return function(query, collection)
     if query == "" then return collection end
     local entries = {}
     for _, v in ipairs(collection) do
-        table.insert(entries, v.entry)
+        table.insert(entries, v.display)
     end
     local result = fzy.filter(query, entries)
     for _, v in ipairs(result) do
