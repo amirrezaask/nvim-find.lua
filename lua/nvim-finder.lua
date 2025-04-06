@@ -76,4 +76,14 @@ function M.buffers(opts)
     }
 end
 
+function M.helptags(opts)
+    opts = opts or {}
+    require("nvim-finder.fuzzy") {
+        require("nvim-finder.source.vim").helptags(),
+        function(e)
+            vim.api.nvim_set_current_buf(e)
+        end,
+    }
+end
+
 return M
