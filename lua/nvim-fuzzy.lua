@@ -1,62 +1,12 @@
 vim.opt.runtimepath:append("~/src/nvim-fuzzy")
 package.loaded["nvim-fuzzy"] = nil
 package.loaded["nvim-fuzzy.fzy"] = nil
-local uv = vim.uv
-
-local function call_find(path, callback)
-    local handle
-    local stdout = uv.new_pipe(false)
-    local stderr = uv.new_pipe(false)
-    local results = {}
-
-    handle = uv.spawn("find", {
-        args = { path, "-type", "f", "-not", "-path", "**/.git/*", "-not", "-path", "**/vendor/**", },
-        stdio = { nil, stdout, stderr },
-    }, function(code, signal)
-        stdout:read_stop()
-        stdout:close()
-        handle:close()
-        if code == 0 then
-            for i, v in ipairs(results) do
-                results[i] = results[i]:sub(#path + 1)
-            end
-            callback(results)
-        end
-    end)
-
-    uv.read_start(stderr, function(err, data)
-        if err then
-            print("stderr ", err)
-            return
-        end
-        if data then
-            print("stderr ", data)
-        end
-    end)
-
-    uv.read_start(stdout, function(err, data)
-        if err then
-            vim.schedule(function()
-                print(err)
-            end)
-            return
-        end
-        if data then
-            local lines = vim.split(data, "\n")
-            for _, line in ipairs(lines) do
-                if line ~= "" then
-                    table.insert(results, line)
-                end
-            end
-        end
-    end)
-end
-
-local PROMPT = "> "
+package.loaded["nvim-fuzzy.find"] = nil
 
 ---@class FuzzyFinder.Input
 ---@field [1] table<string>
 ---@field [2] fun(selected: string)
+---@field prompt string
 ---@function new_fuzzy_finder
 ---@param input FuzzyFinder.Input
 function new_fuzzy_finder(input)
@@ -69,6 +19,7 @@ function new_fuzzy_finder(input)
         [1] = input[1],
         [2] = input[2],
         user_input = "",
+        prompt = input.prompt or '> '
     }
 
     opts.source = opts[1]
@@ -79,13 +30,15 @@ function new_fuzzy_finder(input)
     end
     opts.on_accept = opts[2]
 
-    local row = math.floor(vim.o.lines * (2 / 3))
-    local col = math.floor(vim.o.columns * 0.5)
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
-    vim.fn.prompt_setprompt(buf, PROMPT)
-    local width = math.floor(vim.o.columns * 0.7)
-    local height = math.floor(vim.o.lines * 0.8)
+    vim.fn.prompt_setprompt(buf, opts.prompt)
+
+    local width = math.floor(vim.o.columns * 0.5)
+    local height = math.floor(vim.o.lines * 0.9)
+    local row = math.floor((vim.o.lines - height) / 2)
+    local col = math.floor((vim.o.columns - width) / 2)
+
     local win = vim.api.nvim_open_win(buf, true, {
         relative = "editor",
         width = width,
@@ -104,7 +57,7 @@ function new_fuzzy_finder(input)
         local prev = opts.user_input
         local prompt_line = vim.api.nvim_get_current_line()
 
-        opts.user_input = prompt_line:sub(#PROMPT + 1)
+        opts.user_input = prompt_line:sub(#opts.prompt + 1)
         opts.scores = {}
         opts.buf_lines = {}
 
@@ -124,7 +77,7 @@ function new_fuzzy_finder(input)
         end
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
-        vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
+        vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
 
         local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
 
@@ -176,15 +129,16 @@ function new_fuzzy_finder(input)
     end)
 end
 
-call_find(vim.fn.expand("~/src/doctor/tweety"), function(files)
-    vim.schedule(function()
-        new_fuzzy_finder {
-            files,
-            function(e)
-                vim.print(e)
-            end,
-        }
+require("nvim-fuzzy.find")("~/src/doctor/tweety",
+    function(files)
+        vim.schedule(function()
+            new_fuzzy_finder {
+                files,
+                function(e)
+                    vim.print(e)
+                end,
+            }
+        end)
     end)
-end)
 
 return new_fuzzy_finder
