@@ -3,171 +3,186 @@ package.loaded["nvim-fuzzy"] = nil
 package.loaded["nvim-fuzzy.fzy"] = nil
 local uv = vim.uv
 
-local MEASURE = function(f)
-	local start = vim.uv.hrtime()
-	f()
-
-	return (vim.uv.hrtime() - start) / 1e6
-end
 local function call_find(path, callback)
-	local handle
-	local stdout = uv.new_pipe(false)
-	local stderr = uv.new_pipe(false)
-	local results = {}
+    local handle
+    local stdout = uv.new_pipe(false)
+    local stderr = uv.new_pipe(false)
+    local results = {}
 
-	handle = uv.spawn("find", {
-		args = { path, "-type", "f", "-not", "-path", "**/.git/*", "-not", "-path", "**/vendor/**" },
-		stdio = { nil, stdout, stderr },
-	}, function(code, signal)
-		stdout:read_stop()
-		stdout:close()
-		handle:close()
-		if code == 0 then callback(results) end
-	end)
+    handle = uv.spawn("find", {
+        args = { path, "-type", "f", "-not", "-path", "**/.git/*", "-not", "-path", "**/vendor/**", },
+        stdio = { nil, stdout, stderr },
+    }, function(code, signal)
+        stdout:read_stop()
+        stdout:close()
+        handle:close()
+        if code == 0 then
+            for i, v in ipairs(results) do
+                results[i] = results[i]:sub(#path + 1)
+            end
+            callback(results)
+        end
+    end)
 
-	uv.read_start(stderr, function(err, data)
-		if err then
-			print("stderr ", err)
-			return
-		end
-		if data then print("stderr ", data) end
-	end)
+    uv.read_start(stderr, function(err, data)
+        if err then
+            print("stderr ", err)
+            return
+        end
+        if data then
+            print("stderr ", data)
+        end
+    end)
 
-	uv.read_start(stdout, function(err, data)
-		if err then
-			vim.schedule(function() print(err) end)
-			return
-		end
-		if data then
-			local lines = vim.split(data, "\n")
-			for _, line in ipairs(lines) do
-				table.insert(results, line)
-			end
-		end
-	end)
+    uv.read_start(stdout, function(err, data)
+        if err then
+            vim.schedule(function()
+                print(err)
+            end)
+            return
+        end
+        if data then
+            local lines = vim.split(data, "\n")
+            for _, line in ipairs(lines) do
+                table.insert(results, line)
+            end
+        end
+    end)
 end
 
 local PROMPT = "> "
 
 ---@class FuzzyFinder.Input
 ---@field [1] table<string>
----@field [2] func(selected: string)
+---@field [2] fun(selected: string)
 ---@function new_fuzzy_finder
 ---@param input FuzzyFinder.Input
 function new_fuzzy_finder(input)
-	assert(input, "input is required")
-	assert(input[1], "opts[1] source is required, should be a table")
-	assert(type(input[1]) == "table")
-	assert(input[2], "opts.[2] on_accept is required")
+    assert(input, "input is required")
+    assert(input[1], "opts[1] source is required, should be a table")
+    assert(type(input[1]) == "table")
+    assert(input[2], "opts.[2] on_accept is required")
 
-	local opts = {
-		[1] = input[1],
-		[2] = input[2],
-		user_input = "",
-	}
+    local opts = {
+        [1] = input[1],
+        [2] = input[2],
+        user_input = "",
+    }
 
-	opts.source = opts[1]
-	opts.on_accept = opts[2]
-	opts.selected_item = #opts.source - 2
+    opts.source = opts[1]
 
-	local row = math.floor(vim.o.lines * (2 / 3))
-	local col = math.floor(vim.o.columns * 0.5)
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
-	vim.fn.prompt_setprompt(buf, PROMPT)
-	local width = math.floor(vim.o.columns * 0.7)
-	local height = math.floor(vim.o.lines * 0.8)
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = "editor",
-		width = width,
-		height = height,
-		row = row,
-		col = col,
-		style = "minimal",
-		border = "rounded",
-	})
+    opts.source_scored = {}
+    for _, v in ipairs(opts.source) do
+        table.insert(opts.source_scored, { entry = v, score = 0 })
+    end
+    opts.on_accept = opts[2]
+    opts.selected_item = #opts.source - 2
 
-	vim.cmd [[ startinsert ]]
+    local row = math.floor(vim.o.lines * (2 / 3))
+    local col = math.floor(vim.o.columns * 0.5)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
+    vim.fn.prompt_setprompt(buf, PROMPT)
+    local width = math.floor(vim.o.columns * 0.7)
+    local height = math.floor(vim.o.lines * 0.8)
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        width = width,
+        height = height,
+        row = row,
+        col = col,
+        style = "minimal",
+        border = "rounded",
+    })
 
-	opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
+    vim.cmd [[ startinsert ]]
 
-	function opts.update(opts)
-		local prev = opts.user_input
-		local prompt_line = vim.api.nvim_get_current_line()
+    opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
 
-		opts.user_input = prompt_line:sub(#PROMPT + 1)
-		opts.scores = {}
-		opts.buf_lines = {}
-		opts.source_scored = {}
+    function opts.update(opts)
+        local prev = opts.user_input
+        local prompt_line = vim.api.nvim_get_current_line()
 
-		for _, v in ipairs(opts.source) do
-			table.insert(opts.source_scored, { word = v, score = 0 })
-		end
+        opts.user_input = prompt_line:sub(#PROMPT + 1)
+        opts.scores = {}
+        opts.buf_lines = {}
 
-		local start = vim.uv.hrtime()
-		if prev ~= opts.user_input then
-			local scores = require("nvim-fuzzy.fzy")(opts.user_input, opts.source)
-			--TODO(amirreza): there should be a better way than 3 loops ...
-			for _, v in ipairs(scores or {}) do
-				opts.source_scored[v[1]].score = v[3]
-			end
-		end
+        --TODO(amirreza): there should be a better way than 3 loops ...
+        local start = vim.uv.hrtime()
+        if prev ~= opts.user_input then
+            opts.source_scored = require("nvim-fuzzy.fzy")(opts.user_input, opts.source_scored)
+            table.sort(opts.source_scored, function(a, b)
+                return (a.score) < (b.score)
+            end)
+        end
 
-		table.sort(opts.source_scored, function(a, b) return (a.score or 0) < (b.score or 0) end)
+        local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
-		for _, v in ipairs(opts.source_scored) do
-			table.insert(opts.buf_lines, string.format("%X %s", v.score, v.word))
-		end
+        for _, v in ipairs(opts.source_scored) do
+            table.insert(opts.buf_lines, string.format("%f %s", v.score, v.entry))
+        end
 
-		local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+        vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
+        vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
 
-		print("Entries", #opts.source, "Cost", sort_elapsed, "ms")
+        local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
 
-		vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
+        print(
+            "Entries", #opts.source,
+            "Cost", sort_elapsed, "ms"
+        )
+        if opts.selected_item < 1 then
+            opts.selected_item = actual_lines - 1
+        end
 
-		vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #PROMPT })
+        if opts.selected_item >= actual_lines then
+            opts.selected_item = 0
+        end
 
-		local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
+        vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
-		if opts.selected_item < 1 then opts.selected_item = actual_lines - 1 end
+        vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
+    end
 
-		if opts.selected_item > actual_lines - 1 then opts.selected_item = 0 end
+    vim.keymap.set({ "n", "i" }, "<C-n>", function()
+        opts.selected_item = opts.selected_item + 1
+        opts:update()
+    end, { buffer = buf })
 
-		vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
+    vim.keymap.set({ "n", "i" }, "<C-p>", function()
+        opts.selected_item = opts.selected_item - 1
+        opts:update()
+    end, { buffer = buf })
 
-		vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
-	end
+    vim.keymap.set({ "n", "i" }, "<CR>", function()
+        local item = opts.source_scored[opts.selected_item + 1].entry
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+        vim.cmd([[ quit! ]])
+        vim.print(item)
+        opts.on_accept(item)
+    end, { buffer = buf })
 
-	vim.keymap.set({ "n", "i" }, "<C-n>", function()
-		opts.selected_item = opts.selected_item + 1
-		opts:update()
-	end, { buffer = buf })
+    vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+        buffer = buf,
+        callback = function()
+            opts:update()
+        end,
+    })
 
-	vim.keymap.set({ "n", "i" }, "<C-p>", function()
-		opts.selected_item = opts.selected_item - 1
-		opts:update()
-	end, { buffer = buf })
-
-	vim.keymap.set({ "n", "i" }, "<CR>", function()
-		local item = opts.source_scored[opts.selected_item + 1].word
-		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
-		vim.cmd([[ quit! ]])
-		vim.print(item)
-		opts.on_accept(item)
-	end, { buffer = buf })
-
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-		buffer = buf,
-		callback = function() opts:update() end,
-	})
-
-	vim.schedule(function() opts:update() end)
+    vim.schedule(function()
+        opts:update()
+    end)
 end
 
-call_find(vim.fn.expand("~/src/doctor/core"), function(files)
-	vim.schedule(function()
-		new_fuzzy_finder { files, function(e) vim.print(e) end }
-	end)
+call_find(vim.fn.expand("~/src/doctor/tweety"), function(files)
+    vim.schedule(function()
+        new_fuzzy_finder {
+            files,
+            function(e)
+                vim.print(e)
+            end,
+        }
+    end)
 end)
 
 return new_fuzzy_finder
