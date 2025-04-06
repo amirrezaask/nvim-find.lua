@@ -2,5 +2,13 @@
 Set of different finders for neovim, focues on simplicity.
 
 
+
+## List
+- files
+- ripgrep 
+- fuzzy_ripgrep
+- buffers
+
+
 ## TODO
-- Scrolling in results
+- Scrolling in fuzzy results
