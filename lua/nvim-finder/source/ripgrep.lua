@@ -23,7 +23,7 @@ local function parse_ripgrep_line(line)
     return nil
 end
 
-local function rg(opts)
+local function rg_fuzzy(opts)
     assert(opts)
     assert(opts.query)
     opts.cwd = opts.cwd or vim.fs.root(0, '.git') or vim.fn.expand("%:p:h")
@@ -78,6 +78,66 @@ local function rg(opts)
 end
 
 
+local function rg_qf(opts)
+    assert(opts.query)
+    opts.cwd = opts.cwd or vim.fs.root(0, '.git') or vim.fn.expand("%:p:h")
+    local uv = vim.uv
+    local handle
+    local stdout = uv.new_pipe(false)
+    local stderr = uv.new_pipe(false)
+    local path = vim.fn.expand(opts.cwd)
+
+    handle = uv.spawn("rg", {
+        args = { "--color", "never", "--column", "-n", "--no-heading", opts.query },
+        cwd = path,
+        stdio = { nil, stdout, stderr },
+    }, function(code, signal)
+        stdout:read_stop()
+        stdout:close()
+        handle:close()
+        vim.schedule(function()
+            vim.cmd.copen()
+        end)
+    end)
+
+    uv.read_start(stderr, function(err, data)
+        if err then
+            print("stderr ", err)
+            return
+        end
+        if data then
+            print("stderr ", data)
+        end
+    end)
+
+    uv.read_start(stdout, function(err, data)
+        if err then
+            vim.schedule(function()
+                print(err)
+            end)
+            return
+        end
+        if data then
+            local lines = vim.split(data, "\n")
+            for _, line in ipairs(lines) do
+                if line ~= "" then
+                    local e = parse_ripgrep_line(line)
+                    if e ~= nil then
+                        vim.schedule(function()
+                            local filename = vim.fs.joinpath(path, e.file)
+                            vim.print(filename)
+                            vim.fn.setqflist(
+                                { { filename = filename, lnum = e.line, col = e.column, text = e.match } },
+                                'a')
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+
 -- rg {
 --     query = "session",
 --     cwd = "~/src/doctor/tweety",
@@ -85,4 +145,14 @@ end
 --         vim.print(e.entry)
 --     end)
 
-return rg
+
+-- rg_qf {
+--     query = "session",
+--     cwd = "~/src/doctor/tweety"
+-- }
+
+
+return {
+    fuzzy = rg_fuzzy,
+    qf = rg_qf
+}

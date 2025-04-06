@@ -19,22 +19,36 @@ end
 ---@field path string path to set as CWD, if not set it will be root of git repository.
 ---@param opts Finder.FilesOpts
 function M.files(opts)
+    ---@type Finder.FilesOpts
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git") or vim.fn.getcwd()
 
-    require("nvim-finder.fuzzy") {
-        require("nvim-finder.source.find_async")(opts.path),
-        function(e)
-            vim.cmd.edit(e)
-        end
-    }
+    opts[1] = require("nvim-finder.source.find")(opts.path)
+    opts[2] = function(e)
+        vim.cmd.edit(e)
+    end
+
+    opts.width_ratio = opts.width_ratio or 0.7
+    opts.height_ratio = opts.height_ratio or 0.3
+
+    require("nvim-finder.fuzzy")(opts)
 end
 
-function M.ripgrep()
+function M.ripgrep(cwd)
     vim.ui.input({ prompt = "Ripgrep> " }, function(s)
         if s == nil then return end
+        require("nvim-finder.source.ripgrep").qf({
+            query = s,
+            cwd = cwd or vim.fn.getcwd(),
+        })
+    end)
+end
+
+function M.fuzzy_ripgrep()
+    vim.ui.input({ prompt = "Fuzzy Ripgrep> " }, function(s)
+        if s == nil then return end
         require("nvim-finder.fuzzy") {
-            require("nvim-finder.source.ripgrep")({ query = s }),
+            require("nvim-finder.source.ripgrep").fuzzy({ query = s }),
 
             ---@param e Finder.Ripgrep.Entry
             function(e)

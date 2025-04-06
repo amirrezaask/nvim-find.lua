@@ -1,19 +1,14 @@
----@class Finder.FuzzyInput
+---@class Finder.FuzzyOpts
 ---@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
 ---@field prompt string
-return function(input)
-    assert(input, "input is required")
-    assert(input[1], "opts[1] source is required, should be a table")
-    assert(input[2], "opts.[2] on_accept is required")
+local function fuzzy(opts)
+    assert(opts, "input is required")
+    assert(opts[1], "opts[1] source is required, should be a table")
+    assert(opts[2], "opts[2] on_accept is required")
 
-    local opts = {
-        [1] = input[1],
-        [2] = input[2],
-        user_input = "",
-        prompt = input.prompt or '> '
-    }
-
+    opts.user_input = ""
+    opts.prompt = opts.prompt or '> '
     opts.source = {}
     opts.source_function_calling_convention = opts.source_function_calling_convention or 'once'
 
@@ -23,8 +18,9 @@ return function(input)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, opts.prompt)
 
-    local width = math.floor(vim.o.columns * 0.7)
-    local height = math.floor(vim.o.lines * 0.8)
+    vim.print(opts.height_ratio)
+    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.7))
+    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.8))
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
 
@@ -35,7 +31,7 @@ return function(input)
         row = row,
         col = col,
         style = "minimal",
-        -- border = "rounded",
+        border = "rounded",
     })
 
     vim.cmd [[ startinsert ]]
@@ -117,17 +113,21 @@ return function(input)
         end,
     })
 
-    if type(input[1]) == 'function' then
-        input[1](function(e)
+    if type(opts[1]) == 'function' then
+        opts[1](function(e)
             table.insert(opts.source, e)
             opts.selected_item = -1
             vim.schedule(function() opts:update() end)
         end)
     else
-        opts.source = input[1]
+        opts.source = opts[1]
     end
 
     vim.schedule(function()
         opts:update()
     end)
 end
+
+
+
+return fuzzy
