@@ -1,6 +1,5 @@
 return function(path)
     return function(update_notifier)
-        print("find async called")
         local uv = vim.uv
         local handle
         local stdout = uv.new_pipe(false)

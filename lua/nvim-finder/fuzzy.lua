@@ -27,7 +27,6 @@ local function fuzzy(opts)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, opts.prompt)
 
-    vim.print(opts.height_ratio)
     local width = math.floor(vim.o.columns * (opts.width_ratio or 0.7))
     local height = math.floor(vim.o.lines * (opts.height_ratio or 0.8))
     local row = math.floor((vim.o.lines - height) / 2)
@@ -40,11 +39,11 @@ local function fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
+        -- border = "rounded",
     })
 
 
-    vim.api.nvim_set_option_value('winbar', opts.title, { win = win })
+    if opts.set_winbar then vim.api.nvim_set_option_value('winbar', opts.title, { win = win }) end
 
     vim.cmd [[ startinsert ]]
 
@@ -72,6 +71,13 @@ local function fuzzy(opts)
             table.insert(opts.buf_lines, string.format("%s", v.display))
         end
 
+
+        if #opts.source < height - 1 then
+            for i = 1, height - 1 - #opts.source do
+                table.insert(opts.buf_lines, i, "")
+            end
+        end
+
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
         vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
 
@@ -94,6 +100,7 @@ local function fuzzy(opts)
         vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)
 
         vim.hl.range(buf, opts.hl_ns, "Question", { opts.selected_item, 0 }, { opts.selected_item, width })
+        vim.hl.range(buf, opts.hl_ns, "Visual", { opts.selected_item, 0 }, { opts.selected_item, width })
     end
 
     vim.keymap.set({ "n", "i" }, "<C-n>", function()
@@ -107,11 +114,15 @@ local function fuzzy(opts)
     end, { buffer = buf })
 
     vim.keymap.set({ "n", "i" }, "<CR>", function()
-        local view_offset = 0
-        if #opts.buf_lines ~= #opts.source then
-            view_offset = #opts.source - height - 2
+        local idx = opts.selected_item + 1
+        if height < #opts.source then
+            local view_offset = #opts.source - height - 2
+            idx = opts.selected_item + view_offset + 1
+        elseif #opts.source < height - 1 then
+            local added_lines = (height - 1) - #opts.source
+            idx = (opts.selected_item + 1) - added_lines
         end
-        local item = opts.source[opts.selected_item + view_offset + 1].entry
+        local item = opts.source[idx].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         vim.api.nvim_win_close(win, true)
         vim.api.nvim_buf_delete(buf, { force = true })
