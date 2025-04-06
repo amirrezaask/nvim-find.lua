@@ -19,7 +19,7 @@ local function fuzzy(opts)
     opts.prompt = opts.prompt or '> '
     opts.title = opts.title or 'Fuzzy Finder'
     opts.source = {}
-    opts.source_function_calling_convention = opts.source_function_calling_convention or 'once'
+    opts.sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
 
     opts.on_accept = opts[2]
 
@@ -62,7 +62,7 @@ local function fuzzy(opts)
 
         local start = vim.uv.hrtime()
         if prev ~= opts.user_input then
-            opts.source = require("nvim-finder.alg.fzy")(opts.user_input, opts.source)
+            opts.source = opts.sorting_function(opts.user_input, opts.source)
             table.sort(opts.source, function(a, b)
                 return (a.score) < (b.score)
             end)
@@ -71,7 +71,7 @@ local function fuzzy(opts)
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
         for _, v in ipairs(table.sub(opts.source, #opts.source - height - 1, #opts.source)) do
-            table.insert(opts.buf_lines, string.format("%s", v.display))
+            table.insert(opts.buf_lines, string.format(" %s", v.display))
         end
 
 
