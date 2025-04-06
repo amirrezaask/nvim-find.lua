@@ -1,5 +1,4 @@
 ---@class Finder.FuzzyInput
----@field [1] table<Finder.Entry>
 ---@field [2] fun(selected: string)
 ---@field prompt string
 ---@function new_fuzzy_finder
@@ -7,7 +6,6 @@
 return function(input)
     assert(input, "input is required")
     assert(input[1], "opts[1] source is required, should be a table")
-    -- assert(type(input[1]) == "table")
     assert(input[2], "opts.[2] on_accept is required")
 
     local opts = {
@@ -17,13 +15,8 @@ return function(input)
         prompt = input.prompt or '> '
     }
 
-
     opts.source = {}
-    if type(input[1]) == 'function' then
-        input[1](opts.source)
-    else
-        opts.source = input[1]
-    end
+    opts.source_function_calling_convention = opts.source_function_calling_convention or 'once'
 
     opts.on_accept = opts[2]
 
@@ -43,7 +36,7 @@ return function(input)
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
+        -- border = "rounded",
     })
 
     vim.cmd [[ startinsert ]]
@@ -51,9 +44,9 @@ return function(input)
     opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
 
     function opts.update(opts)
-        if type(input[1]) == 'function' then
-            input[1](opts.source)
-        end
+        -- if type(input[1]) == 'function' and opts.source_function_calling_convention == 'everytime' then
+        --     input[1](opts.source)
+        -- end
         local prev = opts.user_input
         local prompt_line = vim.api.nvim_get_current_line()
 
@@ -61,7 +54,6 @@ return function(input)
         opts.scores = {}
         opts.buf_lines = {}
 
-        --TODO(amirreza): there should be a better way than 3 loops ...
         local start = vim.uv.hrtime()
         if prev ~= opts.user_input then
             opts.source = require("nvim-finder.alg.fzy")(opts.user_input, opts.source)
@@ -128,6 +120,16 @@ return function(input)
             opts:update()
         end,
     })
+
+    if type(input[1]) == 'function' then
+        input[1](function(e)
+            table.insert(opts.source, e)
+            opts.selected_item = -1
+            vim.schedule(function() opts:update() end)
+        end)
+    else
+        opts.source = input[1]
+    end
 
     vim.schedule(function()
         opts:update()

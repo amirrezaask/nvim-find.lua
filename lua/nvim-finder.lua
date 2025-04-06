@@ -10,6 +10,7 @@ function M.__reload()
     package.loaded["nvim-finder"] = nil
     package.loaded["nvim-finder.alg.fzy"] = nil
     package.loaded["nvim-finder.source.find"] = nil
+    package.loaded["nvim-finder.source.find_async"] = nil
     package.loaded["nvim-finder.fuzzy"] = nil
 end
 
@@ -18,32 +19,40 @@ end
 ---@param opts Finder.FilesOpts
 function M.files(opts)
     opts = opts or {}
-    opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git")
-    require("nvim-finder.source.find")(opts.path,
-        function(files)
-            vim.schedule(function()
-                require("nvim-finder.fuzzy") {
-                    files,
-                    function(e)
-                        vim.cmd.edit(e)
-                    end,
-                }
-            end)
-        end)
+    opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git") or vim.fn.getcwd()
+
+    require("nvim-finder.fuzzy") {
+        require("nvim-finder.source.find_async")(opts.path),
+        function(e)
+            vim.cmd.edit(e)
+        end
+    }
+    -- require("nvim-finder.source.find")(opts.path,
+    --     function(files)
+    --         vim.schedule(function()
+    --             require("nvim-finder.fuzzy") {
+    --                 files,
+    --                 function(e)
+    --                     vim.cmd.edit(e)
+    --                 end,
+    --             }
+    --         end)
+    --     end)
 end
 
 -- M.__reload()
 -- require("nvim-finder.fuzzy") {
---     function(source)
---         table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
---         table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
---     end,
---
+--     -- function(source)
+--     --     table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
+--     --     table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
+--     -- end,
+--     --
+--     require("nvim-finder.source.find_async")("~/src/doctor/core"),
 --     function(e)
 --         print(e)
 --     end
 -- }
-
+--
 
 
 ---@class Finder.BuffersOpts
