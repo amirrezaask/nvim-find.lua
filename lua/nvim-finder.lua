@@ -1,7 +1,6 @@
 vim.opt.runtimepath:append("~/src/nvim-finder")
 local M = {}
 
-
 ---@class Finder.Entry
 ---@field entry string
 ---@field score number
@@ -33,6 +32,22 @@ function M.files(opts)
         end)
 end
 
--- M.files({ path = "~/src/doctor/core" })
+---@class Finder.BuffersOpts
+---@param opts Finder.BuffersOpts
+function M.buffers(opts)
+    opts = opts or {}
+    opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git")
+    local buffers = {}
+
+    for _, id in ipairs(vim.api.nvim_list_bufs()) do
+        table.insert(buffers, { entry = id, display = vim.api.nvim_buf_get_name(id), score = 0 })
+    end
+    require("nvim-finder.fuzzy") {
+        buffers,
+        function(e)
+            vim.api.nvim_set_current_buf(e)
+        end,
+    }
+end
 
 return M
