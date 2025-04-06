@@ -44,7 +44,9 @@ local function call_find(path, callback)
         if data then
             local lines = vim.split(data, "\n")
             for _, line in ipairs(lines) do
-                table.insert(results, line)
+                if line ~= "" then
+                    table.insert(results, line)
+                end
             end
         end
     end)
