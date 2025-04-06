@@ -7,7 +7,7 @@
 return function(input)
     assert(input, "input is required")
     assert(input[1], "opts[1] source is required, should be a table")
-    assert(type(input[1]) == "table")
+    -- assert(type(input[1]) == "table")
     assert(input[2], "opts.[2] on_accept is required")
 
     local opts = {
@@ -17,7 +17,13 @@ return function(input)
         prompt = input.prompt or '> '
     }
 
-    opts.source = opts[1]
+
+    opts.source = {}
+    if type(input[1]) == 'function' then
+        input[1](opts.source)
+    else
+        opts.source = input[1]
+    end
 
     opts.on_accept = opts[2]
 
@@ -45,6 +51,9 @@ return function(input)
     opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
 
     function opts.update(opts)
+        if type(input[1]) == 'function' then
+            input[1](opts.source)
+        end
         local prev = opts.user_input
         local prompt_line = vim.api.nvim_get_current_line()
 

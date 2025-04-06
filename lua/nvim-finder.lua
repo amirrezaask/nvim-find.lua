@@ -32,6 +32,20 @@ function M.files(opts)
         end)
 end
 
+-- M.__reload()
+-- require("nvim-finder.fuzzy") {
+--     function(source)
+--         table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
+--         table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
+--     end,
+--
+--     function(e)
+--         print(e)
+--     end
+-- }
+
+
+
 ---@class Finder.BuffersOpts
 ---@param opts Finder.BuffersOpts
 function M.buffers(opts)
