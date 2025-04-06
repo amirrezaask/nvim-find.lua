@@ -28,8 +28,8 @@ local function fuzzy(opts)
     vim.fn.prompt_setprompt(buf, opts.prompt)
 
     local width = math.floor(vim.o.columns * (opts.width_ratio or 0.7))
-    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.8))
-    local row = math.floor((vim.o.lines - height) / 2)
+    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.9))
+    local row = math.floor(vim.o.lines - height)
     local col = math.floor((vim.o.columns - width) / 2)
 
     local win = vim.api.nvim_open_win(buf, true, {
@@ -41,7 +41,10 @@ local function fuzzy(opts)
         style = "minimal",
         -- border = "rounded",
     })
-
+    vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
+    vim.api.nvim_set_option_value('wrap', false, { win = win })
+    vim.api.nvim_set_option_value('ul', -1, { buf = buf })
+    vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
 
     if opts.set_winbar then vim.api.nvim_set_option_value('winbar', opts.title, { win = win }) end
 

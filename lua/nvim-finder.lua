@@ -23,14 +23,19 @@ function M.files(opts)
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
     opts.title = 'Files ' .. opts.path
+    opts.source = opts.source or 'luv'
 
-    opts[1] = require("nvim-finder.source.find")(opts.path)
+    if opts.source == 'luv' then
+        opts[1] = require("nvim-finder.source.luv")(opts)
+    elseif opts.source == 'find' then
+        opts[1] = require("nvim-finder.source.find")(opts)
+    else
+        vim.fn.error('unsupported source ' .. opts.source)
+    end
+
     opts[2] = function(e)
         vim.cmd.edit(e)
     end
-
-    opts.width_ratio = opts.width_ratio or 0.7
-    opts.height_ratio = opts.height_ratio or 0.3
 
     require("nvim-finder.fuzzy")(opts)
 end
@@ -90,19 +95,6 @@ function M.helptags(opts)
     }
 end
 
-function M.files2(opts)
-    opts = opts or {}
-    opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
-    opts[1] = require("nvim-finder.source.luv")(opts)
-    opts[2] = function(e)
-        print(e)
-        vim.cmd.edit(e)
-    end
-    opts.title = 'Files ' .. opts.path
-
-    require('nvim-finder.fuzzy')(opts)
-end
-
-M.files = M.files2
+--TODO: navigator function that shows current file directory and you can traverse into directories by recursively calling it again from  on_accept
 
 return M
