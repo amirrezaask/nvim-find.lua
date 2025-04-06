@@ -10,7 +10,7 @@ function M.__reload()
     package.loaded["nvim-finder"] = nil
     package.loaded["nvim-finder.alg.fzy"] = nil
     package.loaded["nvim-finder.source.find"] = nil
-    package.loaded["nvim-finder.source.find_async"] = nil
+    package.loaded["nvim-finder.source.luv"] = nil
     package.loaded["nvim-finder.source.ripgrep"] = nil
     package.loaded["nvim-finder.fuzzy"] = nil
 end
@@ -85,5 +85,19 @@ function M.helptags(opts)
         end,
     }
 end
+
+function M.files2(opts)
+    M.__reload()
+    opts = opts or {}
+    opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
+    opts[1] = require("nvim-finder.source.luv")(opts)
+    opts[2] = function(e)
+        vim.cmd.edit(e)
+    end
+
+    require('nvim-finder.fuzzy')(opts)
+end
+
+-- M.files2({ path = "~/src/doctor/core" })
 
 return M
