@@ -112,6 +112,10 @@ return function(input)
         opts.on_accept(item)
     end, { buffer = buf })
 
+    vim.keymap.set({ "n", "i" }, "<C-c>", function()
+        vim.cmd([[ quit! ]])
+    end, { buffer = buf })
+
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         buffer = buf,
         callback = function()
