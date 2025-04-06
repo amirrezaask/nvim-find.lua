@@ -81,7 +81,7 @@ function M.helptags(opts)
     require("nvim-finder.fuzzy") {
         require("nvim-finder.source.vim").helptags(),
         function(e)
-            vim.api.nvim_set_current_buf(e)
+            vim.cmd.help(e)
         end,
     }
 end
