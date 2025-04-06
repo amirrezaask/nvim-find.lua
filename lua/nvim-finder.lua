@@ -35,8 +35,11 @@ function M.ripgrep()
         if s == nil then return end
         require("nvim-finder.fuzzy") {
             require("nvim-finder.source.ripgrep")({ query = s }),
+
+            ---@param e Finder.Ripgrep.Entry
             function(e)
-                print(e)
+                vim.cmd.edit(e.file)
+                vim.api.nvim_win_set_cursor(0, { e.line, e.column })
             end
         }
     end)

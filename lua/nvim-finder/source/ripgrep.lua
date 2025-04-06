@@ -1,3 +1,28 @@
+---@class Finder.Ripgrep.Entry
+---@field line number
+---@field column number
+---@field match string
+---@field file string
+
+local function parse_ripgrep_line(line)
+    local filepath, lineno, col, match = line:match("^.-%s+(.-):(%d+):(%d+):(.*)")
+    if not filepath then
+        filepath, lineno, col, match = line:match("^(.-):(%d+):(%d+):(.*)")
+    end
+
+    if filepath and lineno and col and match then
+        return {
+            file = filepath,
+            line = tonumber(lineno),
+            column = tonumber(col),
+            match = match,
+        }
+    end
+
+    print("Could not parse line ", line)
+    return nil
+end
+
 local function rg(opts)
     assert(opts)
     assert(opts.query)
@@ -41,7 +66,7 @@ local function rg(opts)
                 local lines = vim.split(data, "\n")
                 for _, line in ipairs(lines) do
                     if line ~= "" then
-                        update_notifier({ entry = line, score = -math.huge, display = line })
+                        update_notifier({ entry = parse_ripgrep_line(line), score = -math.huge, display = line })
                     end
                 end
             end
@@ -49,11 +74,12 @@ local function rg(opts)
     end
 end
 
-return rg
 
 -- rg {
 --     query = "session",
 --     cwd = "~/src/doctor/tweety",
 -- } (function(e)
---         vim.print(e)
+--         vim.print(e.entry)
 --     end)
+
+return rg
