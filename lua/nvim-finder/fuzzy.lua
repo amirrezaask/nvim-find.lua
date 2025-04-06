@@ -1,7 +1,7 @@
 ---@class Finder.FuzzyInput
----@field [2] fun(selected: string)
+---@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
+---@field [2] fun(selected_entry: string)
 ---@field prompt string
----@function new_fuzzy_finder
 ---@param input Finder.FuzzyInput
 return function(input)
     assert(input, "input is required")
@@ -44,9 +44,6 @@ return function(input)
     opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
 
     function opts.update(opts)
-        -- if type(input[1]) == 'function' and opts.source_function_calling_convention == 'everytime' then
-        --     input[1](opts.source)
-        -- end
         local prev = opts.user_input
         local prompt_line = vim.api.nvim_get_current_line()
 
