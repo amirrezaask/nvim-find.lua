@@ -61,7 +61,7 @@ return function(input)
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
         for _, v in ipairs(opts.source) do
-            table.insert(opts.buf_lines, string.format("%f %s", v.score, v.display))
+            table.insert(opts.buf_lines, string.format("%s", v.display))
         end
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
