@@ -78,7 +78,6 @@ function new_fuzzy_finder(input)
         table.insert(opts.source_scored, { entry = v, score = 0 })
     end
     opts.on_accept = opts[2]
-    opts.selected_item = #opts.source - 2
 
     local row = math.floor(vim.o.lines * (2 / 3))
     local col = math.floor(vim.o.columns * 0.5)
@@ -133,6 +132,7 @@ function new_fuzzy_finder(input)
             "Entries", #opts.source,
             "Cost", sort_elapsed, "ms"
         )
+        if opts.selected_item == nil then opts.selected_item = actual_lines - 1 end
         if opts.selected_item < 1 then
             opts.selected_item = actual_lines - 1
         end
