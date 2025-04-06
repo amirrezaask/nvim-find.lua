@@ -4,6 +4,7 @@ local function recursive_files(opts)
     opts = opts or {}
 
     opts.path = vim.fn.expand(opts.path)
+    if opts.starting_directory == nil then opts.starting_directory = opts.path end
     opts.hidden = opts.hidden or false
     opts.exclude = opts.exclude or {}
 
@@ -11,7 +12,7 @@ local function recursive_files(opts)
     local exclude_patterns = {}
     if type(opts.exclude) == "string" then
         exclude_patterns = { opts.exclude }
-    elseif vim.tbl_islist(opts.exclude) then
+    elseif vim.islist(opts.exclude) then
         exclude_patterns = opts.exclude
     end
 
@@ -61,7 +62,7 @@ local function recursive_files(opts)
                         if entry.type == 'file' then
                             update_notifier({
                                 entry = entry_path,
-                                display = entry_path:sub(#opts.path + 1),
+                                display = entry_path:sub(#opts.starting_directory + 1),
                                 score = 0
                             })
                         elseif entry.type == "directory" then
@@ -90,13 +91,13 @@ end
 
 
 
-recursive_files({
-    path = "~/.dotfiles",
-    exclude = { ".git/**", "vendor/**" }
-})(function(e)
-        -- vim.print(e)
-    end)
-
+-- recursive_files({
+--     path = "~/src/nvim-finder/",
+--     exclude = { ".git/**", "vendor/**" }
+-- })(function(e)
+--         vim.print(e)
+--     end)
+--
 
 
 

@@ -92,12 +92,11 @@ function M.files2(opts)
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
     opts[1] = require("nvim-finder.source.luv")(opts)
     opts[2] = function(e)
+        print(e)
         vim.cmd.edit(e)
     end
 
     require('nvim-finder.fuzzy')(opts)
 end
-
--- M.files2({ path = "~/src/doctor/core" })
 
 return M
