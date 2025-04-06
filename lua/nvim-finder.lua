@@ -21,7 +21,7 @@ end
 function M.files(opts)
     ---@type Finder.FilesOpts
     opts = opts or {}
-    opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git") or vim.fn.getcwd()
+    opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
 
     opts[1] = require("nvim-finder.source.find")(opts.path)
     opts[2] = function(e)
