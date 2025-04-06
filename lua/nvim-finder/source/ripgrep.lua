@@ -26,7 +26,7 @@ end
 local function rg_fuzzy(opts)
     assert(opts)
     assert(opts.query)
-    opts.cwd = opts.cwd or vim.fs.root(0, '.git') or vim.fn.expand("%:p:h")
+    opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
     return function(update_notifier)
         print("rg async called")
         local uv = vim.uv

@@ -9,6 +9,7 @@ local function fuzzy(opts)
 
     opts.user_input = ""
     opts.prompt = opts.prompt or '> '
+    opts.title = opts.title or 'Fuzzy Finder'
     opts.source = {}
     opts.source_function_calling_convention = opts.source_function_calling_convention or 'once'
 
@@ -33,6 +34,9 @@ local function fuzzy(opts)
         style = "minimal",
         border = "rounded",
     })
+
+
+    vim.api.nvim_set_option_value('winbar', opts.title, { win = win })
 
     vim.cmd [[ startinsert ]]
 

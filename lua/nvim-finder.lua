@@ -22,6 +22,7 @@ function M.files(opts)
     ---@type Finder.FilesOpts
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
+    opts.title = 'Files ' .. opts.path
 
     opts[1] = require("nvim-finder.source.find")(opts.path)
     opts[2] = function(e)
@@ -44,18 +45,20 @@ function M.ripgrep(cwd)
     end)
 end
 
-function M.fuzzy_ripgrep()
+function M.fuzzy_ripgrep(opts)
+    opts = opts or {}
+    opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
+
     vim.ui.input({ prompt = "Fuzzy Ripgrep> " }, function(s)
         if s == nil then return end
-        require("nvim-finder.fuzzy") {
-            require("nvim-finder.source.ripgrep").fuzzy({ query = s }),
+        opts[1] = require("nvim-finder.source.ripgrep").fuzzy({ query = s })
+        opts[2] = function(e)
+            vim.cmd.edit(e.file)
+            vim.api.nvim_win_set_cursor(0, { e.line, e.column })
+        end
+        opts.title = 'Rg ' .. opts.cwd
 
-            ---@param e Finder.Ripgrep.Entry
-            function(e)
-                vim.cmd.edit(e.file)
-                vim.api.nvim_win_set_cursor(0, { e.line, e.column })
-            end
-        }
+        require("nvim-finder.fuzzy")(opts)
     end)
 end
 
@@ -69,6 +72,7 @@ function M.buffers(opts)
         table.insert(buffers, { entry = id, display = vim.api.nvim_buf_get_name(id), score = 0 })
     end
     require("nvim-finder.fuzzy") {
+        title = "Buffers",
         buffers,
         function(e)
             vim.api.nvim_set_current_buf(e)
@@ -87,7 +91,6 @@ function M.helptags(opts)
 end
 
 function M.files2(opts)
-    M.__reload()
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git")
     opts[1] = require("nvim-finder.source.luv")(opts)
@@ -95,8 +98,11 @@ function M.files2(opts)
         print(e)
         vim.cmd.edit(e)
     end
+    opts.title = 'Files ' .. opts.path
 
     require('nvim-finder.fuzzy')(opts)
 end
+
+M.files = M.files2
 
 return M
