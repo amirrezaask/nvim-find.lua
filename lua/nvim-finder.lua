@@ -36,7 +36,6 @@ end
 ---@param opts Finder.BuffersOpts
 function M.buffers(opts)
     opts = opts or {}
-    opts.path = opts.path or vim.fs.root(vim.fn.expand("%"), ".git")
     local buffers = {}
 
     for _, id in ipairs(vim.api.nvim_list_bufs()) do
