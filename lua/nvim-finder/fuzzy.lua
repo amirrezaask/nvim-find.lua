@@ -1,15 +1,10 @@
-vim.opt.runtimepath:append("~/src/nvim-fuzzy")
-package.loaded["nvim-fuzzy"] = nil
-package.loaded["nvim-fuzzy.fzy"] = nil
-package.loaded["nvim-fuzzy.find"] = nil
-
 ---@class FuzzyFinder.Input
 ---@field [1] table<string>
 ---@field [2] fun(selected: string)
 ---@field prompt string
 ---@function new_fuzzy_finder
 ---@param input FuzzyFinder.Input
-function new_fuzzy_finder(input)
+return function(input)
     assert(input, "input is required")
     assert(input[1], "opts[1] source is required, should be a table")
     assert(type(input[1]) == "table")
@@ -34,8 +29,8 @@ function new_fuzzy_finder(input)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, opts.prompt)
 
-    local width = math.floor(vim.o.columns * 0.5)
-    local height = math.floor(vim.o.lines * 0.9)
+    local width = math.floor(vim.o.columns * 0.7)
+    local height = math.floor(vim.o.lines * 0.8)
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
 
@@ -64,7 +59,7 @@ function new_fuzzy_finder(input)
         --TODO(amirreza): there should be a better way than 3 loops ...
         local start = vim.uv.hrtime()
         if prev ~= opts.user_input then
-            opts.source_scored = require("nvim-fuzzy.fzy")(opts.user_input, opts.source_scored)
+            opts.source_scored = require("nvim-finder.alg.fzy")(opts.user_input, opts.source_scored)
             table.sort(opts.source_scored, function(a, b)
                 return (a.score) < (b.score)
             end)
@@ -128,17 +123,3 @@ function new_fuzzy_finder(input)
         opts:update()
     end)
 end
-
-require("nvim-fuzzy.find")("~/src/doctor/tweety",
-    function(files)
-        vim.schedule(function()
-            new_fuzzy_finder {
-                files,
-                function(e)
-                    vim.print(e)
-                end,
-            }
-        end)
-    end)
-
-return new_fuzzy_finder
