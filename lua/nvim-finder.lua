@@ -11,6 +11,7 @@ function M.__reload()
     package.loaded["nvim-finder.alg.fzy"] = nil
     package.loaded["nvim-finder.source.find"] = nil
     package.loaded["nvim-finder.source.find_async"] = nil
+    package.loaded["nvim-finder.source.ripgrep"] = nil
     package.loaded["nvim-finder.fuzzy"] = nil
 end
 
@@ -27,33 +28,19 @@ function M.files(opts)
             vim.cmd.edit(e)
         end
     }
-    -- require("nvim-finder.source.find")(opts.path,
-    --     function(files)
-    --         vim.schedule(function()
-    --             require("nvim-finder.fuzzy") {
-    --                 files,
-    --                 function(e)
-    --                     vim.cmd.edit(e)
-    --                 end,
-    --             }
-    --         end)
-    --     end)
 end
 
--- M.__reload()
--- require("nvim-finder.fuzzy") {
---     -- function(source)
---     --     table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
---     --     table.insert(source, { entry = "abc" .. #source, display = "abc" .. #source, score = 0 })
---     -- end,
---     --
---     require("nvim-finder.source.find_async")("~/src/doctor/core"),
---     function(e)
---         print(e)
---     end
--- }
---
-
+function M.ripgrep()
+    vim.ui.input({ prompt = "Ripgrep> " }, function(s)
+        if s == nil then return end
+        require("nvim-finder.fuzzy") {
+            require("nvim-finder.source.ripgrep")({ query = s }),
+            function(e)
+                print(e)
+            end
+        }
+    end)
+end
 
 ---@class Finder.BuffersOpts
 ---@param opts Finder.BuffersOpts

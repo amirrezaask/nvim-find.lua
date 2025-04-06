@@ -2,7 +2,6 @@
 ---@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
 ---@field prompt string
----@param input Finder.FuzzyInput
 return function(input)
     assert(input, "input is required")
     assert(input[1], "opts[1] source is required, should be a table")
