@@ -62,16 +62,18 @@ local function rg_fuzzy(opts)
                 end)
                 return
             end
+            local result = {}
             if data then
                 local lines = vim.split(data, "\n")
                 for _, line in ipairs(lines) do
                     if line ~= "" then
                         local e = parse_ripgrep_line(line)
                         if e ~= nil then
-                            update_notifier({ entry = e, score = -math.huge, display = vim.trim(e.match) })
+                            table.insert(result, { entry = e, score = -math.huge, display = vim.trim(e.match) })
                         end
                     end
                 end
+                update_notifier(result)
             end
         end)
     end

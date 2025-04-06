@@ -1,3 +1,11 @@
+function table.sub(t, i, j)
+    local result = {}
+    for k = i or 1, j or #t do
+        result[#result + 1] = t[k]
+    end
+    return result
+end
+
 ---@class Finder.FuzzyOpts
 ---@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
@@ -60,7 +68,7 @@ local function fuzzy(opts)
 
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
-        for _, v in ipairs(opts.source) do
+        for _, v in ipairs(table.sub(opts.source, #opts.source - height - 1, #opts.source)) do
             table.insert(opts.buf_lines, string.format("%s", v.display))
         end
 
@@ -73,6 +81,7 @@ local function fuzzy(opts)
             "Entries", #opts.source,
             "Cost", sort_elapsed, "ms"
         )
+
         if opts.selected_item == nil then opts.selected_item = actual_lines - 1 end
         if opts.selected_item < 0 then
             opts.selected_item = actual_lines - 1
@@ -98,16 +107,20 @@ local function fuzzy(opts)
     end, { buffer = buf })
 
     vim.keymap.set({ "n", "i" }, "<CR>", function()
-        local item = opts.source[opts.selected_item + 1].entry
+        local view_offset = 0
+        if #opts.buf_lines ~= #opts.source then
+            view_offset = #opts.source - height - 2
+        end
+        local item = opts.source[opts.selected_item + view_offset + 1].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         vim.api.nvim_win_close(win, true)
         vim.api.nvim_buf_delete(buf, { force = true })
-        vim.print(item)
         opts.on_accept(item)
     end, { buffer = buf })
 
     vim.keymap.set({ "n", "i" }, "<C-c>", function()
-        vim.cmd([[ quit! ]])
+        vim.api.nvim_win_close(win, true)
+        vim.api.nvim_buf_delete(buf, { force = true })
     end, { buffer = buf })
 
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
@@ -119,7 +132,9 @@ local function fuzzy(opts)
 
     if type(opts[1]) == 'function' then
         opts[1](function(e)
-            table.insert(opts.source, e)
+            for _, v in ipairs(e) do
+                table.insert(opts.source, v)
+            end
             opts.selected_item = -1
             vim.schedule(function() opts:update() end)
         end)
@@ -127,9 +142,7 @@ local function fuzzy(opts)
         opts.source = opts[1]
     end
 
-    vim.schedule(function()
-        opts:update()
-    end)
+    opts:update()
 end
 
 

@@ -1,5 +1,6 @@
 local uv = vim.loop
 
+
 local function recursive_files(opts)
     opts = opts or {}
 
@@ -41,6 +42,9 @@ local function recursive_files(opts)
                         return
                     end
 
+
+                    local files = {}
+
                     if not entries then
                         uv.fs_closedir(dir)
                         return
@@ -60,7 +64,7 @@ local function recursive_files(opts)
                         end
 
                         if entry.type == 'file' then
-                            update_notifier({
+                            table.insert(files, {
                                 entry = entry_path,
                                 display = entry_path:sub(#opts.starting_directory + 1),
                                 score = 0
@@ -75,6 +79,10 @@ local function recursive_files(opts)
                                 recursive_files(new_opts)(update_notifier)
                             end)
                         end
+
+
+
+                        update_notifier(files)
 
                         ::continue::
                     end
