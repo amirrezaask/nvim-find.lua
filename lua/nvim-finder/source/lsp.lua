@@ -3,11 +3,11 @@ local shorten_path = require("nvim-finder.path").shorten
 
 local function make_display(filename, sym, line)
     return string.format(
-        "[%s] %s - %s:%d",
+        "[%s] %s - %s",
         sym.kind,
         shorten_path(filename),
-        sym.name,
-        line
+        sym.name
+    -- line
     )
 end
 
@@ -24,7 +24,7 @@ function M.document_symbols(bufnr)
                     local line = pos and pos.start.line + 1 or 0
                     local filename = vim.api.nvim_buf_get_name(0)
                     table.insert(entries, {
-                        entry = sym,
+                        entry = { filename = filename, line = line },
                         display = make_display(filename, sym, line),
                         score = 0,
                     })
@@ -46,7 +46,7 @@ function M.document_symbols(bufnr)
                         local filename = vim.uri_to_fname(uri)
 
                         table.insert(entries, {
-                            entry = sym,
+                            entry = { filename = filename, line = line },
                             display = make_display(filename, sym, line),
                             score = 0,
                         })
@@ -77,7 +77,7 @@ function M.workspace_symbols(bufnr)
                     local line = sym.location.range.start.line + 1
                     local filename = vim.uri_to_fname(uri)
                     table.insert(entries, {
-                        entry = sym,
+                        entry = { filename = filename, line = line },
                         display = make_display(filename, sym, line),
                         score = 0,
                     })

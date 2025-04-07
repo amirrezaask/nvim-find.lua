@@ -16,3 +16,4 @@ Set of different finders for neovim, focues on simplicity.
 
 ## TODO
 - Scrolling in fuzzy results
+- interactive navigator

@@ -148,7 +148,8 @@ function M.lsp_document_symbols(opts)
 
     opts[1] = require("nvim-finder.source.lsp").document_symbols(vim.api.nvim_get_current_buf())
     opts[2] = function(e)
-        vim.print(e)
+        vim.cmd.edit(e.filename)
+        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
     end
 
     require "nvim-finder.fuzzy" (opts)
@@ -159,7 +160,8 @@ function M.lsp_workspace_symbols(opts)
 
     opts[1] = require("nvim-finder.source.lsp").workspace_symbols(vim.api.nvim_get_current_buf())
     opts[2] = function(e)
-        vim.print(e)
+        vim.cmd.edit(e.filename)
+        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
     end
 
 
