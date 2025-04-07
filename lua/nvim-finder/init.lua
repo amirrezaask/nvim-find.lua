@@ -167,6 +167,5 @@ function M.lsp_workspace_symbols(opts)
 end
 
 --TODO: navigator function that shows current file directory and you can traverse into directories by recursively calling it again from  on_accept
---TODO: LSP document symbols and workspace symbols
 
 return M
