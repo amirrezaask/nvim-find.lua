@@ -53,61 +53,21 @@ end
 function M.live_ripgrep(opts)
 end
 
-function M.diagnostics(opts)
-    opts = opts or {}
-    local current_buf = vim.api.nvim_get_current_buf()
-    local diags = vim.diagnostic.get(current_buf, {})
-    local entries = {}
-    -- { SAMPLE DIAGNOSTIC
-    --     _tags = {
-    --       unnecessary = true
-    --     },
-    --     bufnr = 1,
-    --     code = "unused-local",
-    --     col = 10,
-    --     end_col = 17,
-    --     end_lnum = 86,
-    --     lnum = 86,
-    --     message = "Unused local `buffers`.",
-    --     namespace = 15,
-    --     severity = 4,
-    --     source = "Lua Diagnostics.",
-    --     user_data = {
-    --       lsp = {
-    --         code = "unused-local",
-    --         message = "Unused local `buffers`.",
-    --         range = {
-    --           ["end"] = {
-    --             character = 17,
-    --             line = 86
-    --           },
-    --           start = {
-    --             character = 10,
-    --             line = 86
-    --           }
-    --         },
-    --         severity = 4,
-    --         source = "Lua Diagnostics.",
-    --         tags = { 1 }
-    --       }
-    --     }
-    for _, diag in ipairs(diags) do
-        local filename = vim.api.nvim_buf_get_name(diag.bufnr)
-        local severity = diag.severity
-        severity = type(severity) == "number" and vim.diagnostic.severity[severity] or severity
-        table.insert(entries, {
-            display = string.format("[%s] %s %s", severity, require("nvim-finder.path").shorten(filename), diag.message),
-            score = 0,
-            entry = {
-                filename = filename,
-                line = diag.lnum,
-            }
-        })
-    end
-
+function M.diagnostics()
     require("nvim-finder.fuzzy") {
         title = "Diagnostics",
-        entries,
+        require('nvim-finder.source.vim').diagnostics(nil),
+        function(e)
+            vim.cmd.edit(e.filename)
+            vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+        end,
+    }
+end
+
+function M.diagnostics_buffer()
+    require("nvim-finder.fuzzy") {
+        title = "Diagnostics Buffer",
+        require('nvim-finder.source.vim').diagnostics(vim.api.nvim_get_current_buf()),
         function(e)
             vim.cmd.edit(e.filename)
             vim.api.nvim_win_set_cursor(0, { e.line, 0 })
@@ -179,6 +139,29 @@ function M.oldfiles(opts)
     opts[2] = function(e)
         vim.cmd.edit(e)
     end
+
+    require "nvim-finder.fuzzy" (opts)
+end
+
+function M.lsp_document_symbols(opts)
+    opts = opts or {}
+
+    opts[1] = require("nvim-finder.source.lsp").document_symbols(vim.api.nvim_get_current_buf())
+    opts[2] = function(e)
+        vim.print(e)
+    end
+
+    require "nvim-finder.fuzzy" (opts)
+end
+
+function M.lsp_workspace_symbols(opts)
+    opts = opts or {}
+
+    opts[1] = require("nvim-finder.source.lsp").workspace_symbols(vim.api.nvim_get_current_buf())
+    opts[2] = function(e)
+        vim.print(e)
+    end
+
 
     require "nvim-finder.fuzzy" (opts)
 end
