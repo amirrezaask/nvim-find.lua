@@ -1,5 +1,5 @@
 local uv = vim.loop
-
+local shorten_path = require("nvim-finder.path").shorten
 
 local function recursive_files(opts)
     opts = opts or {}
@@ -8,6 +8,7 @@ local function recursive_files(opts)
     if opts.starting_directory == nil then opts.starting_directory = opts.path end
     opts.hidden = opts.hidden or false
     opts.exclude = opts.exclude or {}
+    opts.shorten_paths = opts.shorten_paths or true
 
     -- Normalize exclude to a list of glob patterns
     local exclude_patterns = {}
@@ -64,10 +65,13 @@ local function recursive_files(opts)
                         end
 
                         if entry.type == 'file' then
+                            local display_path = entry_path
+                            if opts.shorten_paths then
+                                display_path = shorten_path(display_path)
+                            end
                             table.insert(files, {
                                 entry = entry_path,
-                                -- display = entry_path:sub(#opts.starting_directory + 1),
-                                display = entry_path,
+                                display = display_path,
                                 score = 0
                             })
                         elseif entry.type == "directory" then

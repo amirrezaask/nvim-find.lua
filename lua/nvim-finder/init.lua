@@ -40,7 +40,7 @@ function M.files(opts)
     require("nvim-finder.fuzzy")(opts)
 end
 
-function M.ripgrep(cwd)
+function M.ripgrep_qf(cwd)
     vim.ui.input({ prompt = "Ripgrep> " }, function(s)
         if s == nil then return end
         require("nvim-finder.source.ripgrep").qf({
@@ -50,7 +50,72 @@ function M.ripgrep(cwd)
     end)
 end
 
-function M.fuzzy_ripgrep(opts)
+function M.live_ripgrep(opts)
+end
+
+function M.diagnostics(opts)
+    opts = opts or {}
+    local current_buf = vim.api.nvim_get_current_buf()
+    local diags = vim.diagnostic.get(current_buf, {})
+    local entries = {}
+    -- { SAMPLE DIAGNOSTIC
+    --     _tags = {
+    --       unnecessary = true
+    --     },
+    --     bufnr = 1,
+    --     code = "unused-local",
+    --     col = 10,
+    --     end_col = 17,
+    --     end_lnum = 86,
+    --     lnum = 86,
+    --     message = "Unused local `buffers`.",
+    --     namespace = 15,
+    --     severity = 4,
+    --     source = "Lua Diagnostics.",
+    --     user_data = {
+    --       lsp = {
+    --         code = "unused-local",
+    --         message = "Unused local `buffers`.",
+    --         range = {
+    --           ["end"] = {
+    --             character = 17,
+    --             line = 86
+    --           },
+    --           start = {
+    --             character = 10,
+    --             line = 86
+    --           }
+    --         },
+    --         severity = 4,
+    --         source = "Lua Diagnostics.",
+    --         tags = { 1 }
+    --       }
+    --     }
+    for _, diag in ipairs(diags) do
+        local filename = vim.api.nvim_buf_get_name(diag.bufnr)
+        local severity = diag.severity
+        severity = type(severity) == "number" and vim.diagnostic.severity[severity] or severity
+        table.insert(entries, {
+            display = string.format("[%s] %s %s", severity, require("nvim-finder.path").shorten(filename), diag.message),
+            score = 0,
+            entry = {
+                filename = filename,
+                line = diag.lnum,
+            }
+        })
+    end
+
+    require("nvim-finder.fuzzy") {
+        title = "Diagnostics",
+        entries,
+        function(e)
+            vim.cmd.edit(e.filename)
+            vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+        end,
+    }
+end
+
+function M.ripgrep_fuzzy(opts)
     opts = opts or {}
     opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
 
@@ -73,12 +138,9 @@ function M.buffers(opts)
     opts = opts or {}
     local buffers = {}
 
-    for _, id in ipairs(vim.api.nvim_list_bufs()) do
-        table.insert(buffers, { entry = id, display = vim.api.nvim_buf_get_name(id), score = 0 })
-    end
     require("nvim-finder.fuzzy") {
         title = "Buffers",
-        buffers,
+        require("nvim-finder.source.vim").buffers(opts),
         function(e)
             vim.api.nvim_set_current_buf(e)
         end,
@@ -104,6 +166,21 @@ function M.git_files(opts)
             vim.cmd.edit(e)
         end
     }
+end
+
+function M.oldfiles(opts)
+    opts = opts or {}
+    opts[1] = {}
+
+    for _, v in ipairs(vim.v.oldfiles) do
+        table.insert(opts[1], { entry = v, display = v, score = 0 })
+    end
+
+    opts[2] = function(e)
+        vim.cmd.edit(e)
+    end
+
+    require "nvim-finder.fuzzy" (opts)
 end
 
 --TODO: navigator function that shows current file directory and you can traverse into directories by recursively calling it again from  on_accept

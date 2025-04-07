@@ -8,6 +8,7 @@ function M.files(opts)
         local stdout = uv.new_pipe(false)
         local stderr = uv.new_pipe(false)
         opts.path = vim.fn.expand(opts.path)
+        opts.shorten_paths = opts.shorten_paths or true
 
         --TODO(amirrez): support excludes
         handle = uv.spawn("git", {
@@ -42,7 +43,11 @@ function M.files(opts)
                 local lines = vim.split(data, "\n")
                 for _, line in ipairs(lines) do
                     if line ~= "" then
-                        table.insert(results, { entry = line, score = 0, display = line })
+                        local path = line
+                        if opts.shorten_paths then
+                            path = require("nvim-finder.path").shorten(path)
+                        end
+                        table.insert(results, { entry = line, score = 0, display = path })
                     end
                 end
 

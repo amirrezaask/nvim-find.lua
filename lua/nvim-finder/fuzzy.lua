@@ -10,9 +10,9 @@ end
 ---@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
 ---@field prompt string
-local function fuzzy(opts)
+local function floating_fuzzy(opts)
     assert(opts, "input is required")
-    assert(opts[1], "opts[1] source is required, should be a table")
+    assert(opts[1], "opts[1] source is required")
     assert(opts[2], "opts[2] on_accept is required")
 
     opts.user_input = ""
@@ -154,6 +154,7 @@ local function fuzzy(opts)
             vim.schedule(function() opts:update() end)
         end)
     else
+        opts.source = {}
         opts.source = opts[1]
     end
 
@@ -162,4 +163,4 @@ end
 
 
 
-return fuzzy
+return floating_fuzzy

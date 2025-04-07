@@ -28,7 +28,6 @@ local function rg_fuzzy(opts)
     assert(opts.query)
     opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
     return function(update_notifier)
-        print("rg async called")
         local uv = vim.uv
         local handle
         local stdout = uv.new_pipe(false)
@@ -69,7 +68,7 @@ local function rg_fuzzy(opts)
                     if line ~= "" then
                         local e = parse_ripgrep_line(line)
                         if e ~= nil then
-                            table.insert(result, { entry = e, score = -math.huge, display = vim.trim(e.match) })
+                            table.insert(result, { entry = e, score = 0, display = e.file .. ": " .. vim.trim(e.match) })
                         end
                     end
                 end
