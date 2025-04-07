@@ -66,7 +66,8 @@ local function recursive_files(opts)
                         if entry.type == 'file' then
                             table.insert(files, {
                                 entry = entry_path,
-                                display = entry_path:sub(#opts.starting_directory + 1),
+                                -- display = entry_path:sub(#opts.starting_directory + 1),
+                                display = entry_path,
                                 score = 0
                             })
                         elseif entry.type == "directory" then

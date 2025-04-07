@@ -19,6 +19,7 @@ local function fuzzy(opts)
     opts.prompt = opts.prompt or '> '
     opts.title = opts.title or 'Fuzzy Finder'
     opts.source = {}
+    opts.padding = opts.padding or '  '
     opts.sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
 
     opts.on_accept = opts[2]
@@ -71,7 +72,7 @@ local function fuzzy(opts)
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
         for _, v in ipairs(table.sub(opts.source, #opts.source - height - 1, #opts.source)) do
-            table.insert(opts.buf_lines, string.format(" %s", v.display))
+            table.insert(opts.buf_lines, string.format(opts.padding .. "%X %s", v.score, v.display))
         end
 
 

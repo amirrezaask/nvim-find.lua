@@ -95,6 +95,18 @@ function M.helptags(opts)
     }
 end
 
+function M.git_files(opts)
+    opts = opts or {}
+
+    require "nvim-finder.fuzzy" {
+        require("nvim-finder.source.git").files(opts),
+        function(e)
+            vim.cmd.edit(e)
+        end
+    }
+end
+
 --TODO: navigator function that shows current file directory and you can traverse into directories by recursively calling it again from  on_accept
+
 
 return M
