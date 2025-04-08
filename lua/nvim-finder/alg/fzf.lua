@@ -89,22 +89,10 @@ local function fuzzy_match_v2(pattern, str)
     end
 
     if pidx <= plen then
-        -- Pattern not fully matched
-        -- 1. false: indicates no complete match was found
-        -- 2. 0: score is 0 since matching failed
-        -- 3. nil: no positions to report since matching was incomplete
         return false, 0, nil
     end
 
-    -- Successful match case
-    -- 1. true: indicates the pattern was fully matched in the string
-    -- 2. score: integer representing match quality (higher is better)
-    --    - Adds bonuses for: first char (100), boundaries (40),
-    --      non-word chars (20), adjacent matches (10)
-    --    - Subtracts penalty (-5) for gaps between matches
-    -- 3. positions: table containing 1-based indices where pattern chars matched
-
-    score = score * (1 / #str) -- We want to have shorter
+    score = score * (1 / #str) -- We want to have shorter items get higher score.
     return true, score, positions
 end
 
