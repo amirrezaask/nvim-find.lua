@@ -1,3 +1,5 @@
+local REFRESH_MS = 15 -- every 15 milliseconds we refresh fuzzy window if there is a need for updating.
+
 function table.sub(t, i, j)
     local result = {}
     for k = i or 1, j or #t do
@@ -206,7 +208,7 @@ local function floating_fuzzy(opts)
 
 
     local timer = vim.uv.new_timer()
-    timer:start(10, 60, vim.schedule_wrap(function()
+    timer:start(10, REFRESH_MS, vim.schedule_wrap(function()
         update()
     end))
 
