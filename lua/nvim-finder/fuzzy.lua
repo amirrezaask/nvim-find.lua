@@ -71,16 +71,20 @@ local function floating_fuzzy(opts)
                 return (a.score) < (b.score)
             end)
         end
+        local result_count = 0
 
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
 
         for _, v in ipairs(table.sub(opts.source, #opts.source - height - 1, #opts.source)) do
+            result_count = result_count + 1
             table.insert(opts.buf_lines, string.format(opts.padding .. "%X %s", v.score, v.display))
         end
 
 
+        local added_lines = 0
         if #opts.source < height - 1 then
             for i = 1, height - 1 - #opts.source do
+                added_lines = added_lines + 1
                 table.insert(opts.buf_lines, i, "")
             end
         end
@@ -96,12 +100,12 @@ local function floating_fuzzy(opts)
         )
 
         if opts.selected_item == nil then opts.selected_item = actual_lines - 1 end
-        if opts.selected_item < 0 then
+        if opts.selected_item < actual_lines - result_count then
             opts.selected_item = actual_lines - 1
         end
 
         if opts.selected_item >= actual_lines then
-            opts.selected_item = 0
+            opts.selected_item = added_lines
         end
 
         vim.api.nvim_buf_clear_namespace(buf, opts.hl_ns, 0, -1)

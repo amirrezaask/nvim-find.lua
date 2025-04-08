@@ -1,20 +1,16 @@
--- Function to shorten a file path like Fish shell
 local function shorten_path(path)
-    -- If path is empty or nil, return empty string
+    local THRESHOLD = 40
     if not path or path == "" then
         return ""
     end
 
-    -- Split path into components using forward slash
     local parts = {}
     for part in path:gmatch("[^/]+") do
         table.insert(parts, part)
     end
 
-    -- Handle absolute paths
     local is_absolute = path:sub(1, 1) == "/"
 
-    -- If it's just a single component or empty, return as is
     if #parts <= 1 then
         return path
     end
@@ -23,10 +19,8 @@ local function shorten_path(path)
     local result = {}
     for i, part in ipairs(parts) do
         if i >= #parts - 1 then
-            -- Last component keeps full name
             table.insert(result, part)
         else
-            -- Take first character of intermediate directories
             table.insert(result, part:sub(1, 1))
         end
     end
@@ -37,10 +31,11 @@ local function shorten_path(path)
         shortened = "/" .. shortened
     end
 
+    if #path < THRESHOLD then return path end
+
     return shortened
 end
 
--- -- Test the function
 -- local test_paths = {
 --     "/home/user/documents/project/file.txt",
 --     "/usr/local/bin/script.sh",
