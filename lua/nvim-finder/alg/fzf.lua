@@ -38,7 +38,7 @@ local function fuzzy_match_v2(pattern, str)
     local slen = #str
     local pchar = normalize_rune(string.byte(pattern, 1))
     local matched = false
-    local score = 0
+    local score = tonumber(0)
     local positions = {}
     local inGap = false
     local firstMatch = -1
@@ -92,7 +92,7 @@ local function fuzzy_match_v2(pattern, str)
         return false, 0, nil
     end
 
-    score = score * (1 / #str) -- We want to have shorter items get higher score.
+    score = (tonumber(score) * 100 / tonumber(#str)) -- We want to have shorter items get higher score.
     return true, score, positions
 end
 

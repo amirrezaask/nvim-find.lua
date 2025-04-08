@@ -40,7 +40,7 @@ local function floating_fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
+        -- border = "rounded",
     })
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win })
@@ -94,10 +94,8 @@ local function floating_fuzzy(opts)
         for _, v in ipairs(opts.this_frame_source) do
             table.insert(opts.buf_lines, string.format(opts.padding .. "%X %s", v.score, v.display))
         end
-        -- print(opts.view_height, #opts.buf_lines, #opts.this_frame_source, added_lines)
 
 
-        -- print(#opts.buf_lines)
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
 
         -- vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
@@ -106,7 +104,7 @@ local function floating_fuzzy(opts)
 
         print(
             "Entries", #opts.source,
-            "Cost", sort_elapsed, "ms"
+            "Cost", sort_elapsed
         )
 
         if opts.selected_item == nil then opts.selected_item = actual_lines - 1 end
@@ -181,8 +179,8 @@ local function floating_fuzzy(opts)
     opts:update()
 end
 
--- require("nvim-finder").__reload()
--- F = require("nvim-finder")
---
+require("nvim-finder").__reload()
+F = require("nvim-finder")
+
 
 return floating_fuzzy

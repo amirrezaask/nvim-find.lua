@@ -1,4 +1,5 @@
 local M = {}
+local log = require("nvim-finder.log")
 
 function M.files(opts)
     return function(update_notifier)
@@ -23,18 +24,18 @@ function M.files(opts)
 
         uv.read_start(stderr, function(err, data)
             if err then
-                print("stderr ", err)
+                log("stderr ", err)
                 return
             end
             if data then
-                print("stderr ", data)
+                log("stderr ", data)
             end
         end)
 
         uv.read_start(stdout, function(err, data)
             if err then
                 vim.schedule(function()
-                    print(err)
+                    log(err)
                 end)
                 return
             end

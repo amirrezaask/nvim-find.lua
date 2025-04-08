@@ -4,6 +4,9 @@
 ---@field match string
 ---@field file string
 
+
+local log = require("nvim-finder.log")
+
 local function parse_ripgrep_line(line)
     local filepath, lineno, col, match = line:match("^.-%s+(.-):(%d+):(%d+):(.*)")
     if not filepath then
@@ -19,7 +22,7 @@ local function parse_ripgrep_line(line)
         }
     end
 
-    print("Could not parse line ", line)
+    log("Could not parse line ", line)
     return nil
 end
 
@@ -46,18 +49,18 @@ local function rg_fuzzy(opts)
 
         uv.read_start(stderr, function(err, data)
             if err then
-                print("stderr ", err)
+                log("stderr ", err)
                 return
             end
             if data then
-                print("stderr ", data)
+                log("stderr ", data)
             end
         end)
 
         uv.read_start(stdout, function(err, data)
             if err then
                 vim.schedule(function()
-                    print(err)
+                    log(err)
                 end)
                 return
             end
@@ -103,18 +106,18 @@ local function rg_qf(opts)
 
     uv.read_start(stderr, function(err, data)
         if err then
-            print("stderr ", err)
+            log("stderr ", err)
             return
         end
         if data then
-            print("stderr ", data)
+            log("stderr ", data)
         end
     end)
 
     uv.read_start(stdout, function(err, data)
         if err then
             vim.schedule(function()
-                print(err)
+                log(err)
             end)
             return
         end
@@ -126,7 +129,7 @@ local function rg_qf(opts)
                     if e ~= nil then
                         vim.schedule(function()
                             local filename = vim.fs.joinpath(path, e.file)
-                            vim.print(filename)
+                            vim.log(filename)
                             vim.fn.setqflist(
                                 { { filename = filename, lnum = e.line, col = e.column, text = e.match } },
                                 'a')
@@ -143,7 +146,7 @@ end
 --     query = "session",
 --     cwd = "~/src/doctor/tweety",
 -- } (function(e)
---         vim.print(e.entry)
+--         vim.log(e.entry)
 --     end)
 
 

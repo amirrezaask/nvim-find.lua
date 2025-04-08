@@ -1,10 +1,13 @@
 local uv = vim.loop
 local shorten_path = require("nvim-finder.path").shorten
+local expand = require("nvim-finder.path").expand
+local log = require("nvim-finder.log")
 
 local function recursive_files(opts)
     opts = opts or {}
 
-    opts.path = vim.fn.expand(opts.path) -- nil check
+    opts.path = expand(opts.path) -- nil check
+    if opts.path == nil then return end
     if opts.starting_directory == nil then opts.starting_directory = opts.path end
     opts.hidden = opts.hidden or false
     opts.exclude = opts.exclude or {}
@@ -31,7 +34,7 @@ local function recursive_files(opts)
     return function(update_notifier)
         uv.fs_opendir(opts.path, function(err, dir)
             if err then
-                print("error reading directory", err)
+                log("error reading directory", err)
                 return
             end
 
@@ -39,7 +42,7 @@ local function recursive_files(opts)
                 uv.fs_readdir(dir, function(err, entries)
                     if err then
                         uv.fs_closedir(dir)
-                        print("error in reading directory", err)
+                        log("error in reading directory", err)
                         return
                     end
 
@@ -81,7 +84,9 @@ local function recursive_files(opts)
                             end
                             new_opts.path = entry_path
                             vim.schedule(function()
-                                recursive_files(new_opts)(update_notifier)
+                                local f = recursive_files(new_opts)
+                                if f == nil then return end
+                                f(update_notifier)
                             end)
                         end
 
@@ -108,7 +113,7 @@ end
 --     path = "~/src/nvim-finder/",
 --     exclude = { ".git/**", "vendor/**" }
 -- })(function(e)
---         vim.print(e)
+--         vim.log(e)
 --     end)
 --
 

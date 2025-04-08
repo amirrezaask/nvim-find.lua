@@ -1,4 +1,5 @@
 local M = {}
+local log = require("nvim-finder.log")
 
 function M.helptags()
     local help_tags = {}

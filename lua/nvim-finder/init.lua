@@ -8,6 +8,7 @@ local M = {}
 
 function M.__reload()
     package.loaded["nvim-finder"] = nil
+    package.loaded["nvim-finder.log"] = nil
     package.loaded["nvim-finder.alg.fzy"] = nil
     package.loaded["nvim-finder.source.find"] = nil
     package.loaded["nvim-finder.source.luv"] = nil
@@ -23,14 +24,11 @@ function M.files(opts)
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = 'Files ' .. opts.path
-    opts.source = opts.source or 'luv'
 
-    if opts.source == 'luv' then
-        opts[1] = require("nvim-finder.source.luv")(opts)
-    elseif opts.source == 'find' then
+    if vim.fn.executable("find") == 1 then
         opts[1] = require("nvim-finder.source.find")(opts)
     else
-        vim.fn.error('unsupported source ' .. opts.source)
+        opts[1] = require("nvim-finder.source.luv")(opts)
     end
 
     opts[2] = function(e)
@@ -167,7 +165,5 @@ function M.lsp_workspace_symbols(opts)
 
     require "nvim-finder.fuzzy" (opts)
 end
-
---TODO: navigator function that shows current file directory and you can traverse into directories by recursively calling it again from  on_accept
 
 return M
