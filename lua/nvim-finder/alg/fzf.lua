@@ -103,6 +103,8 @@ local function fuzzy_match_v2(pattern, str)
     --      non-word chars (20), adjacent matches (10)
     --    - Subtracts penalty (-5) for gaps between matches
     -- 3. positions: table containing 1-based indices where pattern chars matched
+
+    score = score * (1 / #str) -- We want to have shorter
     return true, score, positions
 end
 
@@ -119,20 +121,3 @@ return function(query, collection)
 
     return collection
 end
-
--- -- Example usage
--- local function testMatch(pattern, str)
---     local matched, score, positions = fuzzy_match_v2(pattern, str)
---     print(string.format("Pattern: %s, String: %s", pattern, str))
---     print(string.format("Matched: %s, Score: %d", tostring(matched), score))
---     if positions then
---         print("Positions: " .. table.concat(positions, ", "))
---     end
---     print("")
--- end
---
--- -- Test cases
--- testMatch("abc", "abcde") -- Should match with high score due to consecutive matches
--- testMatch("abc", "a-b-c") -- Should match with boundary bonus
--- testMatch("fb", "foobar") -- Should match with first char bonus and gap penalty
--- testMatch("fb", "fbar")   -- Should match with first char bonus
