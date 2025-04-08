@@ -27,7 +27,9 @@ local function floating_fuzzy(opts)
     local title = opts.title or 'Fuzzy Finder'
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
+    local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
+    -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
+    -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
     local buf_lines = {}
     local selected_item = 0
 
@@ -78,7 +80,7 @@ local function floating_fuzzy(opts)
 
         local start = vim.uv.hrtime()
         if prev ~= user_input then
-            source = sorting_function(user_input, source)
+            sorting_function(user_input, source)
             table.sort(source, function(a, b)
                 return (a.score) < (b.score)
             end)
@@ -147,6 +149,10 @@ local function floating_fuzzy(opts)
         update()
     end
 
+    local function quit()
+        vim.api.nvim_win_close(win, true)
+        vim.api.nvim_buf_delete(buf, { force = true })
+    end
 
     local function accept()
         local idx = selected_item + 1
@@ -159,14 +165,8 @@ local function floating_fuzzy(opts)
         end
         local item = opts.this_frame_source[idx].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
-        vim.api.nvim_win_close(win, true)
-        vim.api.nvim_buf_delete(buf, { force = true })
+        quit()
         on_accept(item)
-    end
-
-    local function quit()
-        vim.api.nvim_win_close(win, true)
-        vim.api.nvim_buf_delete(buf, { force = true })
     end
 
     vim.keymap.set({ "n", "i" }, "<C-p>", function()
