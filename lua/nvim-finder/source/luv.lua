@@ -4,7 +4,7 @@ local shorten_path = require("nvim-finder.path").shorten
 local function recursive_files(opts)
     opts = opts or {}
 
-    opts.path = vim.fn.expand(opts.path)
+    opts.path = vim.fn.expand(opts.path) -- nil check
     if opts.starting_directory == nil then opts.starting_directory = opts.path end
     opts.hidden = opts.hidden or false
     opts.exclude = opts.exclude or {}

@@ -40,7 +40,7 @@ local function floating_fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
-        -- border = "rounded",
+        border = "rounded",
     })
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win })
@@ -54,6 +54,9 @@ local function floating_fuzzy(opts)
     opts.hl_ns = vim.api.nvim_create_namespace("nvim-fuzzy")
 
     function opts.update(opts)
+        if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
+            return
+        end
         local prev = opts.user_input
         local prompt_line = vim.api.nvim_get_current_line()
 
@@ -141,6 +144,9 @@ local function floating_fuzzy(opts)
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         buffer = buf,
         callback = function()
+            if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
+                return
+            end
             opts:update()
         end,
     })
