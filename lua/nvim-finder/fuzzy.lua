@@ -63,8 +63,8 @@ local function floating_fuzzy(opts)
     vim.api.nvim_set_option_value('wrap', false, { win = win })
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
     vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
-    local visible_start = 0
 
+    local visible_start = 0
     local view_height = (height - 1)
 
     if opts.set_winbar then vim.api.nvim_set_option_value('winbar', title, { win = win }) end
@@ -75,10 +75,7 @@ local function floating_fuzzy(opts)
 
     local function update()
         if not should_update then return end
-        if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
-            return
-        end
-
+        if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then return end
 
         local prev = user_input
         local prompt_line = vim.api.nvim_get_current_line()
@@ -94,13 +91,7 @@ local function floating_fuzzy(opts)
             end)
         end
         local t1 = vim.uv.hrtime() -- after sorting
-        if selected_item == nil then
-            if #source > view_height then
-                selected_item = view_height
-            else
-                selected_item = 1
-            end
-        end
+
 
 
         frame_source = {}
@@ -125,6 +116,16 @@ local function floating_fuzzy(opts)
             end
         end
 
+        if selected_item == nil then
+            selected_item = view_height - 1
+        end
+
+
+        if selected_item < 0 then
+            selected_item = 1
+        end
+
+
         for _, v in ipairs(frame_source) do
             local score_prefix = string.format("%X ", v.score)
             if not include_scores then score_prefix = "" end
@@ -138,8 +139,6 @@ local function floating_fuzzy(opts)
 
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, buf_lines)
-
-        local actual_lines = #frame_source + added_lines
 
         _ = FINDER_FUZZY_DEBUG and print(
             "Entries", #source,
@@ -158,22 +157,22 @@ local function floating_fuzzy(opts)
         local old = selected_item
         selected_item = selected_item + delta
 
+        local added_lines = (view_height) - #frame_source
+
+        if selected_item >= view_height then
+            selected_item = added_lines
+        elseif selected_item <= view_height - added_lines then
+            selected_item = view_height - 1
+        end
+
         -- if selected_item < visible_start then
         --     visible_start = selected_item - 1
         -- elseif selected_item > visible_start + view_height then
         --     visible_start = visible_start + 1
         -- end
 
-        local added_lines = (view_height) - #frame_source
-
-        if selected_item >= view_height then
-            selected_item = added_lines
-        elseif selected_item < added_lines then
-            selected_item = view_height - 1
-        end
-
-
-        -- print(("#source=%d #frame=%d view_height=%d old=%d sel=%d"):format(#source, #frame_source, view_height, old, selected_item))
+        print(("#source=%d #frame=%d view_height=%d old=%d sel=%d"):format(#source, #frame_source, view_height, old,
+            selected_item))
     end
 
     local function down()
@@ -246,7 +245,6 @@ local function floating_fuzzy(opts)
             for _, v in ipairs(e) do
                 table.insert(source, v)
             end
-            selected_item = -1
             should_update = true
         end)
     else
@@ -254,6 +252,7 @@ local function floating_fuzzy(opts)
         should_update = true
         source = opts[1]
     end
+
 
     update()
 end
