@@ -103,8 +103,9 @@ end
 return function(query, collection)
     if query == "" then return collection end
     for i, v in ipairs(collection) do
-        local _, score, _ = fuzzy_match_v2(query, v.display)
+        local matched, score, _ = fuzzy_match_v2(query, v.display)
         collection[i].score = score
+        collection[i].matched = matched
     end
 
     return collection

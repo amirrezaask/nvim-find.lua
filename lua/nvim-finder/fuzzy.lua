@@ -61,7 +61,6 @@ local function floating_fuzzy(opts)
         local prompt_line = vim.api.nvim_get_current_line()
 
         opts.user_input = prompt_line:sub(#opts.prompt + 1)
-        opts.scores = {}
         opts.buf_lines = {}
 
         local start = vim.uv.hrtime()
@@ -72,27 +71,38 @@ local function floating_fuzzy(opts)
             end)
         end
         local result_count = 0
+        opts.view_height = (height - 1)
 
         local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
-
-        for _, v in ipairs(table.sub(opts.source, #opts.source - height - 1, #opts.source)) do
-            result_count = result_count + 1
-            table.insert(opts.buf_lines, string.format(opts.padding .. "%X %s", v.score, v.display))
+        opts.this_frame_source = {}
+        for _, v in ipairs(table.sub(opts.source, #opts.source - opts.view_height, #opts.source)) do
+            if v.matched ~= false then
+                result_count = result_count + 1
+                table.insert(opts.this_frame_source, v)
+            end
         end
 
 
         local added_lines = 0
-        if #opts.source < height - 1 then
-            for i = 1, height - 1 - #opts.source do
+        if #opts.this_frame_source < (opts.view_height) then
+            for i = 1, (opts.view_height) - #opts.this_frame_source do
                 added_lines = added_lines + 1
                 table.insert(opts.buf_lines, i, "")
             end
         end
 
-        vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
-        vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
+        for _, v in ipairs(opts.this_frame_source) do
+            table.insert(opts.buf_lines, string.format(opts.padding .. "%X %s", v.score, v.display))
+        end
+        -- print(opts.view_height, #opts.buf_lines, #opts.this_frame_source, added_lines)
 
-        local actual_lines = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
+
+        -- print(#opts.buf_lines)
+        vim.api.nvim_buf_set_lines(buf, 0, -2, false, opts.buf_lines)
+
+        -- vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
+
+        local actual_lines = #opts.this_frame_source + added_lines
 
         print(
             "Entries", #opts.source,
@@ -126,14 +136,14 @@ local function floating_fuzzy(opts)
 
     vim.keymap.set({ "n", "i" }, "<CR>", function()
         local idx = opts.selected_item + 1
-        if height < #opts.source then
-            local view_offset = #opts.source - height - 2
+        if height < #opts.this_frame_source then
+            local view_offset = #opts.this_frame_source - height - 2
             idx = opts.selected_item + view_offset + 1
-        elseif #opts.source < height - 1 then
-            local added_lines = (height - 1) - #opts.source
+        elseif #opts.this_frame_source < opts.view_height then
+            local added_lines = (opts.view_height) - #opts.this_frame_source
             idx = (opts.selected_item + 1) - added_lines
         end
-        local item = opts.source[idx].entry
+        local item = opts.this_frame_source[idx].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         vim.api.nvim_win_close(win, true)
         vim.api.nvim_buf_delete(buf, { force = true })
@@ -171,6 +181,8 @@ local function floating_fuzzy(opts)
     opts:update()
 end
 
-
+-- require("nvim-finder").__reload()
+-- F = require("nvim-finder")
+--
 
 return floating_fuzzy
