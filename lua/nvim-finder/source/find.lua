@@ -1,7 +1,7 @@
 local log = require("nvim-finder.log")
 
 return function(opts)
-    return function(update_notifier)
+    return function(cb)
         opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), '.git')
         local uv = vim.uv
         local handle
@@ -45,7 +45,7 @@ return function(opts)
                     end
                 end
 
-                update_notifier(results)
+                cb(results)
             end
         end)
     end

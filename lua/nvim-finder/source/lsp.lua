@@ -3,9 +3,9 @@ local shorten_path = require("nvim-finder.path").shorten
 
 local function make_display(filename, sym, line)
     return string.format(
-        "[%s] %s - %s",
+        "[%s] %s",
         sym.kind,
-        shorten_path(filename),
+        -- shorten_path(filename),
         sym.name
     -- line
     )

@@ -30,7 +30,7 @@ local function rg_fuzzy(opts)
     assert(opts)
     assert(opts.query)
     opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
-    return function(update_notifier)
+    return function(cb)
         local uv = vim.uv
         local handle
         local stdout = uv.new_pipe(false)
@@ -75,7 +75,7 @@ local function rg_fuzzy(opts)
                         end
                     end
                 end
-                update_notifier(result)
+                cb(result)
             end
         end)
     end

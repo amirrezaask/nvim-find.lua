@@ -7,7 +7,7 @@ function table.sub(t, i, j)
 end
 
 ---@class Finder.FuzzyOpts
----@field [1] table<Finder.Entry> | fun(update_notifier: fun(new_entry))
+---@field [1] table<Finder.Entry> | fun(cb: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
 ---@field prompt string
 local function floating_fuzzy(opts)
@@ -110,10 +110,10 @@ local function floating_fuzzy(opts)
 
         local actual_lines = #opts.this_frame_source + added_lines
 
-        print(
-            "Entries", #source,
-            "Cost", sort_elapsed
-        )
+        -- print(
+        --     "Entries", #source,
+        --     "Cost", sort_elapsed
+        -- )
 
         if selected_item == nil then selected_item = actual_lines - 1 end
         if selected_item < actual_lines - result_count then

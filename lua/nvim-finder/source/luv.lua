@@ -31,7 +31,7 @@ local function recursive_files(opts)
         return false
     end
 
-    return function(update_notifier)
+    return function(cb)
         uv.fs_opendir(opts.path, function(err, dir)
             if err then
                 log("error reading directory", err)
@@ -86,13 +86,13 @@ local function recursive_files(opts)
                             vim.schedule(function()
                                 local f = recursive_files(new_opts)
                                 if f == nil then return end
-                                f(update_notifier)
+                                f(cb)
                             end)
                         end
 
 
 
-                        update_notifier(files)
+                        cb(files)
 
                         ::continue::
                     end

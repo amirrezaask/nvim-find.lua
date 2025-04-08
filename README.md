@@ -15,6 +15,5 @@ Set of different finders for neovim, focues on simplicity.
 - ripgrep_qf 
 
 ## TODO
-- no flooding with prints, do a counter and block prints after a threshold, also errors like permission denied should go to a log file
 - Scrolling in fuzzy results
 - interactive navigator
