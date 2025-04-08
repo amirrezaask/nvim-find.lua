@@ -141,6 +141,8 @@ local function floating_fuzzy(opts)
 
     local function down() shift_cursor(1) end
     local function up() shift_cursor(-1) end
+    local function page_down() shift_cursor(view_height) end
+    local function page_up() shift_cursor(-view_height) end
 
     local function quit()
         vim.api.nvim_win_close(win, true)
@@ -157,6 +159,8 @@ local function floating_fuzzy(opts)
 
     vim.keymap.set({ "n", "i" }, "<C-p>", up, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<C-n>", down, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-,>", page_up, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-.>", page_down, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<CR>", accept, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<C-c>", quit, { buffer = buf })
 
