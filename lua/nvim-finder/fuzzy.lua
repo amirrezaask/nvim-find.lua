@@ -76,7 +76,7 @@ local function floating_fuzzy(opts)
         user_input = prompt_line:sub(#prompt + 1)
         buf_lines = {}
 
-        -- local start = vim.uv.hrtime()
+        local start = vim.uv.hrtime()
         if prev ~= user_input then
             source = sorting_function(user_input, source)
             table.sort(source, function(a, b)
@@ -86,7 +86,7 @@ local function floating_fuzzy(opts)
         local result_count = 0
         opts.view_height = (height - 1)
 
-        -- local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+        local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
         opts.this_frame_source = {}
         for _, v in ipairs(table.sub(source, #source - view_height, #source)) do
             if v.matched ~= false then
@@ -111,14 +111,12 @@ local function floating_fuzzy(opts)
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, buf_lines)
 
-        -- vim.api.nvim_win_set_cursor(win, { #opts.buf_lines + 1, #opts.user_input + #opts.prompt })
-
         local actual_lines = #opts.this_frame_source + added_lines
 
-        -- print(
-        --     "Entries", #source,
-        --     "Cost", sort_elapsed
-        -- )
+        _ = FINDER_FUZZY_DEBUG and print(
+            "Entries", #source,
+            "Cost", sort_elapsed
+        )
 
         if selected_item == nil then selected_item = actual_lines - 1 end
         if selected_item < actual_lines - result_count then
