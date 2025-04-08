@@ -33,9 +33,8 @@ local function floating_fuzzy(opts)
     -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
     -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
     local buf_lines = {}
-    local selected_item = 0
+    local selected_item = nil
     local include_scores = opts.include_scores or true
-    local visible_start = 0
     local frame_source = {}
 
 
@@ -50,6 +49,7 @@ local function floating_fuzzy(opts)
     local row = math.floor(vim.o.lines - height)
     local col = math.floor((vim.o.columns - width) / 2)
 
+
     local win = vim.api.nvim_open_win(buf, true, {
         relative = "editor",
         width = width,
@@ -63,6 +63,7 @@ local function floating_fuzzy(opts)
     vim.api.nvim_set_option_value('wrap', false, { win = win })
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
     vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
+    local visible_start = 0
 
     local view_height = (height - 1)
 
@@ -77,6 +78,8 @@ local function floating_fuzzy(opts)
         if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
             return
         end
+
+
         local prev = user_input
         local prompt_line = vim.api.nvim_get_current_line()
 
@@ -90,26 +93,28 @@ local function floating_fuzzy(opts)
                 return (a.score) < (b.score)
             end)
         end
-        local t1 = (vim.uv.hrtime() - t0) / 1e6 -- after sorting
-
-        if visible_start == 0 then
-            if #source < view_height then
-                visible_start = 1
+        local t1 = vim.uv.hrtime() -- after sorting
+        if selected_item == nil then
+            if #source > view_height then
+                selected_item = view_height
             else
-                visible_start = math.abs(#source - view_height)
+                selected_item = 1
             end
         end
-        local result_count = 0
 
-        print(#source, visible_start, view_height)
 
         frame_source = {}
-        for _, v in ipairs(table.sub(source, visible_start, visible_start + view_height)) do
+        for _, v in ipairs(
+            table.sub(
+                source,
+                visible_start,
+                visible_start + view_height
+            )) do
             if v.matched ~= false then
-                result_count = result_count + 1
                 table.insert(frame_source, v)
             end
         end
+
 
 
         local added_lines = 0
@@ -138,17 +143,8 @@ local function floating_fuzzy(opts)
 
         _ = FINDER_FUZZY_DEBUG and print(
             "Entries", #source,
-            "Cost", t1
+            "Cost", (t1 - t0) / 10e6
         )
-
-        if selected_item == nil then selected_item = actual_lines - 1 end
-        if selected_item < actual_lines - result_count then
-            selected_item = actual_lines - 1
-        end
-
-        if selected_item >= actual_lines then
-            selected_item = added_lines
-        end
 
         vim.api.nvim_buf_clear_namespace(buf, hl_ns, 0, -1)
 
@@ -158,14 +154,36 @@ local function floating_fuzzy(opts)
         should_update = false
     end
 
+    local function shift_cursor(delta)
+        local old = selected_item
+        selected_item = selected_item + delta
+
+        -- if selected_item < visible_start then
+        --     visible_start = selected_item - 1
+        -- elseif selected_item > visible_start + view_height then
+        --     visible_start = visible_start + 1
+        -- end
+
+        local added_lines = (view_height) - #frame_source
+
+        if selected_item >= view_height then
+            selected_item = added_lines
+        elseif selected_item < added_lines then
+            selected_item = view_height - 1
+        end
+
+
+        -- print(("#source=%d #frame=%d view_height=%d old=%d sel=%d"):format(#source, #frame_source, view_height, old, selected_item))
+    end
+
     local function down()
-        selected_item = selected_item + 1
+        shift_cursor(1)
         should_update = true
         update()
     end
 
     local function up()
-        selected_item = selected_item - 1
+        shift_cursor(-1)
         should_update = true
         update()
     end
