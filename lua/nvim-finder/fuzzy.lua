@@ -32,6 +32,7 @@ local function floating_fuzzy(opts)
     -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
     local buf_lines = {}
     local selected_item = 0
+    local include_scores = opts.include_scores or true
 
 
     local on_accept = opts[2]
@@ -107,7 +108,9 @@ local function floating_fuzzy(opts)
         end
 
         for _, v in ipairs(opts.this_frame_source) do
-            table.insert(buf_lines, string.format(padding .. "%s", v.display))
+            local score_prefix = string.format("%X ", v.score)
+            if not include_scores then score_prefix = "" end
+            table.insert(buf_lines, padding .. score_prefix .. v.display)
         end
 
 
@@ -131,8 +134,8 @@ local function floating_fuzzy(opts)
 
         vim.api.nvim_buf_clear_namespace(buf, hl_ns, 0, -1)
 
-        vim.hl.range(buf, hl_ns, "Question", { selected_item, 0 }, { selected_item, width })
-        vim.hl.range(buf, hl_ns, "Visual", { selected_item, 0 }, { selected_item, width })
+        vim.hl.range(buf, hl_ns, "Question", { selected_item, 0 }, { selected_item, -1 })
+        vim.hl.range(buf, hl_ns, "Visual", { selected_item, 0 }, { selected_item, -1 })
 
         should_update = false
     end

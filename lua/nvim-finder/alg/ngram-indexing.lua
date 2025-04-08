@@ -50,7 +50,7 @@ local function score(query, objects)
         local display_len = #objects[obj_idx].display
         -- Boost shorter strings: divide by a function of length (e.g., sqrt or log)
         -- Adding 1 to avoid division by zero or overly harsh penalties for short strings
-        local adjusted_score = overlap / math.sqrt(display_len + 1)
+        local adjusted_score = (overlap / math.sqrt(display_len + 1)) * 100
         objects[obj_idx].score = adjusted_score
     end
 end
