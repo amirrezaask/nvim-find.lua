@@ -48,39 +48,6 @@ end
 function M.diagnostics(bufnr)
     local diags = vim.diagnostic.get(bufnr, {})
     local entries = {}
-    -- { SAMPLE DIAGNOSTIC
-    --     _tags = {
-    --       unnecessary = true
-    --     },
-    --     bufnr = 1,
-    --     code = "unused-local",
-    --     col = 10,
-    --     end_col = 17,
-    --     end_lnum = 86,
-    --     lnum = 86,
-    --     message = "Unused local `buffers`.",
-    --     namespace = 15,
-    --     severity = 4,
-    --     source = "Lua Diagnostics.",
-    --     user_data = {
-    --       lsp = {
-    --         code = "unused-local",
-    --         message = "Unused local `buffers`.",
-    --         range = {
-    --           ["end"] = {
-    --             character = 17,
-    --             line = 86
-    --           },
-    --           start = {
-    --             character = 10,
-    --             line = 86
-    --           }
-    --         },
-    --         severity = 4,
-    --         source = "Lua Diagnostics.",
-    --         tags = { 1 }
-    --       }
-    --     }
     for _, diag in ipairs(diags) do
         local filename = vim.api.nvim_buf_get_name(diag.bufnr)
         local severity = diag.severity

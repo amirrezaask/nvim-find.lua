@@ -9,9 +9,14 @@ end
 ---@class Finder.FuzzyOpts
 ---@field [1] table<Finder.Entry> | fun(cb: fun(new_entry))
 ---@field [2] fun(selected_entry: string)
----@field prompt string
+---@field prompt? string
+---@field title?  string
+---@field padding? string
+---@field sorting_function fun(query: string, collection: table<Finder.Entry>)
+---@field width_ratio number
+---@field height_ratio number
 local function floating_fuzzy(opts)
-    assert(opts, "input is required")
+    assert(opts, "opts is required")
     assert(opts[1], "opts[1] source is required")
     assert(opts[2], "opts[2] on_accept is required")
 
@@ -22,7 +27,7 @@ local function floating_fuzzy(opts)
     local title = opts.title or 'Fuzzy Finder'
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
+    local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
     local buf_lines = {}
     local selected_item = 0
 
@@ -54,7 +59,7 @@ local function floating_fuzzy(opts)
 
     local view_height = (height - 1)
 
-    if opts.set_winbar then vim.api.nvim_set_option_value('winbar', opts.title, { win = win }) end
+    if opts.set_winbar then vim.api.nvim_set_option_value('winbar', title, { win = win }) end
 
     vim.cmd [[ startinsert ]]
 
@@ -71,7 +76,7 @@ local function floating_fuzzy(opts)
         user_input = prompt_line:sub(#prompt + 1)
         buf_lines = {}
 
-        local start = vim.uv.hrtime()
+        -- local start = vim.uv.hrtime()
         if prev ~= user_input then
             source = sorting_function(user_input, source)
             table.sort(source, function(a, b)
@@ -81,7 +86,7 @@ local function floating_fuzzy(opts)
         local result_count = 0
         opts.view_height = (height - 1)
 
-        local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
+        -- local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
         opts.this_frame_source = {}
         for _, v in ipairs(table.sub(source, #source - view_height, #source)) do
             if v.matched ~= false then
@@ -100,7 +105,7 @@ local function floating_fuzzy(opts)
         end
 
         for _, v in ipairs(opts.this_frame_source) do
-            table.insert(buf_lines, string.format(padding .. "%X %s", v.score, v.display))
+            table.insert(buf_lines, string.format(padding .. "%s", v.display))
         end
 
 
@@ -132,19 +137,20 @@ local function floating_fuzzy(opts)
         should_update = false
     end
 
-    vim.keymap.set({ "n", "i" }, "<C-n>", function()
+    local function down()
         selected_item = selected_item + 1
         should_update = true
         update()
-    end, { buffer = buf })
+    end
 
-    vim.keymap.set({ "n", "i" }, "<C-p>", function()
+    local function up()
         selected_item = selected_item - 1
         should_update = true
         update()
-    end, { buffer = buf })
+    end
 
-    vim.keymap.set({ "n", "i" }, "<CR>", function()
+
+    local function accept()
         local idx = selected_item + 1
         if height < #opts.this_frame_source then
             local view_offset = #opts.this_frame_source - height - 2
@@ -158,11 +164,27 @@ local function floating_fuzzy(opts)
         vim.api.nvim_win_close(win, true)
         vim.api.nvim_buf_delete(buf, { force = true })
         on_accept(item)
+    end
+
+    local function quit()
+        vim.api.nvim_win_close(win, true)
+        vim.api.nvim_buf_delete(buf, { force = true })
+    end
+
+    vim.keymap.set({ "n", "i" }, "<C-p>", function()
+        up()
+    end, { buffer = buf })
+
+    vim.keymap.set({ "n", "i" }, "<C-n>", function()
+        down()
+    end, { buffer = buf })
+
+    vim.keymap.set({ "n", "i" }, "<CR>", function()
+        accept()
     end, { buffer = buf })
 
     vim.keymap.set({ "n", "i" }, "<C-c>", function()
-        vim.api.nvim_win_close(win, true)
-        vim.api.nvim_buf_delete(buf, { force = true })
+        quit()
     end, { buffer = buf })
 
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
@@ -178,7 +200,7 @@ local function floating_fuzzy(opts)
 
 
     local timer = vim.uv.new_timer()
-    timer:start(10, 100, vim.schedule_wrap(function()
+    timer:start(10, 60, vim.schedule_wrap(function()
         update()
     end))
 
@@ -199,8 +221,8 @@ local function floating_fuzzy(opts)
     update()
 end
 
-require("nvim-finder").__reload()
-F = require("nvim-finder")
+-- require("nvim-finder").__reload()
+-- F = require("nvim-finder")
 
 
 return floating_fuzzy

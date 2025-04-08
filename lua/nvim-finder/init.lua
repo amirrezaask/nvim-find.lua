@@ -1,10 +1,5 @@
-vim.opt.runtimepath:append("~/src/nvim-finder")
+-- vim.opt.runtimepath:append("~/src/nvim-finder")
 local M = {}
-
----@class Finder.Entry
----@field entry string
----@field score number
----@field display string
 
 function M.__reload()
     package.loaded["nvim-finder"] = nil
@@ -16,14 +11,19 @@ function M.__reload()
     package.loaded["nvim-finder.fuzzy"] = nil
 end
 
----@class Finder.FilesOpts
+---@class Finder.Entry
+---@field entry string
+---@field score number
+---@field display string
+
+---@class Finder.FilesOpts: Finder.FuzzyOpts
 ---@field path string path to set as CWD, if not set it will be root of git repository.
 ---@param opts Finder.FilesOpts
 function M.files(opts)
     ---@type Finder.FilesOpts
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
-    opts.title = 'Files ' .. opts.path
+    opts.title = opts.title or ('Files ' .. opts.path)
 
     if vim.fn.executable("find") == 1 then
         opts[1] = require("nvim-finder.source.find")(opts)
@@ -73,31 +73,31 @@ function M.diagnostics_buffer()
     }
 end
 
+---@class Finder.RipgrepFuzzy: Finder.FuzzyOpts
 function M.ripgrep_fuzzy(opts)
     opts = opts or {}
     opts.cwd = opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git')
 
-    vim.ui.input({ prompt = "Fuzzy Ripgrep> " }, function(s)
+    vim.ui.input({ prompt = opts.prompt or "Fuzzy Ripgrep> " }, function(s)
         if s == nil then return end
         opts[1] = require("nvim-finder.source.ripgrep").fuzzy({ query = s })
         opts[2] = function(e)
             vim.cmd.edit(e.file)
             vim.api.nvim_win_set_cursor(0, { e.line, e.column })
         end
-        opts.title = 'Rg ' .. opts.cwd
+        opts.title = opts.title or ('Rg ' .. opts.cwd)
 
         require("nvim-finder.fuzzy")(opts)
     end)
 end
 
----@class Finder.BuffersOpts
+---@class Finder.BuffersOpts: Finder.FuzzyOpts
 ---@param opts Finder.BuffersOpts
 function M.buffers(opts)
     opts = opts or {}
-    local buffers = {}
 
     require("nvim-finder.fuzzy") {
-        title = "Buffers",
+        title = opts.title or "Buffers",
         require("nvim-finder.source.vim").buffers(opts),
         function(e)
             vim.api.nvim_set_current_buf(e)
@@ -105,6 +105,7 @@ function M.buffers(opts)
     }
 end
 
+---@class Finder.HelpTagsOpts: Finder.FuzzyOpts
 function M.helptags(opts)
     opts = opts or {}
     require("nvim-finder.fuzzy") {
@@ -115,6 +116,7 @@ function M.helptags(opts)
     }
 end
 
+---@class Finder.GitFilesOpts: Finder.FuzzyOpts
 function M.git_files(opts)
     opts = opts or {}
 
@@ -126,6 +128,7 @@ function M.git_files(opts)
     }
 end
 
+---@class Finder.OldFilesOpts: Finder.FuzzyOpts
 function M.oldfiles(opts)
     opts = opts or {}
     opts[1] = {}
@@ -141,6 +144,7 @@ function M.oldfiles(opts)
     require "nvim-finder.fuzzy" (opts)
 end
 
+---@class Finder.LspDocumentSymbolsOpts: Finder.FuzzyOpts
 function M.lsp_document_symbols(opts)
     opts = opts or {}
 
@@ -153,6 +157,7 @@ function M.lsp_document_symbols(opts)
     require "nvim-finder.fuzzy" (opts)
 end
 
+---@class Finder.LspWorkspaceSymbols: Finder.FuzzyOpts
 function M.lsp_workspace_symbols(opts)
     opts = opts or {}
 

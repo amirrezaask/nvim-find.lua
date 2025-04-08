@@ -12,6 +12,7 @@ local SCORE_MATCH_DOT = 0.6
 local SCORE_MAX = math.huge
 local SCORE_MIN = -math.huge
 local MATCH_MAX_LENGTH = 1024
+local CASE_SENSITIVE = false
 
 local fzy = {}
 
@@ -260,13 +261,14 @@ function fzy.get_implementation_name() return "lua" end
 ---@param collection table<Finder.Entry>
 return function(query, collection)
     if query == "" then return collection end
-    local entries = {}
-    for _, v in ipairs(collection) do
-        table.insert(entries, v.display)
-    end
-    local result = fzy.filter(query, entries)
-    for _, v in ipairs(result) do
-        collection[v[1]].score = v[3]
+    for i, entry in ipairs(collection) do
+        if fzy.has_match(query, entry.display, CASE_SENSITIVE) then
+            local _, s = fzy.positions(query, entry.display, CASE_SENSITIVE)
+            collection[i].score = s
+            collection[i].matched = true
+        else
+            collection[i].matched = false
+        end
     end
 
     return collection

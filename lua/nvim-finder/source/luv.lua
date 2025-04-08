@@ -106,17 +106,4 @@ local function recursive_files(opts)
     end
 end
 
-
-
-
--- recursive_files({
---     path = "~/src/nvim-finder/",
---     exclude = { ".git/**", "vendor/**" }
--- })(function(e)
---         vim.log(e)
---     end)
---
-
-
-
 return recursive_files
