@@ -110,7 +110,12 @@ local function floating_fuzzy(opts)
         for _, v in ipairs(opts.this_frame_source) do
             local score_prefix = string.format("%X ", v.score)
             if not include_scores then score_prefix = "" end
-            table.insert(buf_lines, padding .. score_prefix .. v.display)
+            local line = padding .. score_prefix .. v.display
+            if #line < width then
+                line = line .. string.rep(" ", width - #line)
+            end
+
+            table.insert(buf_lines, line)
         end
 
 
