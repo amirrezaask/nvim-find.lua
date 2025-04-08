@@ -35,6 +35,8 @@ local function floating_fuzzy(opts)
     local buf_lines = {}
     local selected_item = 0
     local include_scores = opts.include_scores or true
+    local visible_start = 0
+    local frame_source = {}
 
 
     local on_accept = opts[2]
@@ -43,8 +45,8 @@ local function floating_fuzzy(opts)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, prompt)
 
-    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.7))
-    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.9))
+    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.5))
+    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
     local row = math.floor(vim.o.lines - height)
     local col = math.floor((vim.o.columns - width) / 2)
 
@@ -81,35 +83,44 @@ local function floating_fuzzy(opts)
         user_input = prompt_line:sub(#prompt + 1)
         buf_lines = {}
 
-        local start = vim.uv.hrtime()
+        local t0 = vim.uv.hrtime()
         if prev ~= user_input then
             sorting_function(user_input, source)
             table.sort(source, function(a, b)
                 return (a.score) < (b.score)
             end)
         end
-        local result_count = 0
-        opts.view_height = (height - 1)
+        local t1 = (vim.uv.hrtime() - t0) / 1e6 -- after sorting
 
-        local sort_elapsed = (vim.uv.hrtime() - start) / 1e6
-        opts.this_frame_source = {}
-        for _, v in ipairs(table.sub(source, #source - view_height, #source)) do
+        if visible_start == 0 then
+            if #source < view_height then
+                visible_start = 1
+            else
+                visible_start = math.abs(#source - view_height)
+            end
+        end
+        local result_count = 0
+
+        print(#source, visible_start, view_height)
+
+        frame_source = {}
+        for _, v in ipairs(table.sub(source, visible_start, visible_start + view_height)) do
             if v.matched ~= false then
                 result_count = result_count + 1
-                table.insert(opts.this_frame_source, v)
+                table.insert(frame_source, v)
             end
         end
 
 
         local added_lines = 0
-        if #opts.this_frame_source < (view_height) then
-            for i = 1, (view_height) - #opts.this_frame_source do
+        if #frame_source < (view_height) then
+            for i = 1, (view_height) - #frame_source do
                 added_lines = added_lines + 1
                 table.insert(buf_lines, i, "")
             end
         end
 
-        for _, v in ipairs(opts.this_frame_source) do
+        for _, v in ipairs(frame_source) do
             local score_prefix = string.format("%X ", v.score)
             if not include_scores then score_prefix = "" end
             local line = padding .. score_prefix .. v.display
@@ -123,11 +134,11 @@ local function floating_fuzzy(opts)
 
         vim.api.nvim_buf_set_lines(buf, 0, -2, false, buf_lines)
 
-        local actual_lines = #opts.this_frame_source + added_lines
+        local actual_lines = #frame_source + added_lines
 
         _ = FINDER_FUZZY_DEBUG and print(
             "Entries", #source,
-            "Cost", sort_elapsed
+            "Cost", t1
         )
 
         if selected_item == nil then selected_item = actual_lines - 1 end
@@ -166,14 +177,14 @@ local function floating_fuzzy(opts)
 
     local function accept()
         local idx = selected_item + 1
-        if height < #opts.this_frame_source then
-            local view_offset = #opts.this_frame_source - height - 2
+        if height < #frame_source then
+            local view_offset = #frame_source - height - 2
             idx = selected_item + view_offset + 1
-        elseif #opts.this_frame_source < opts.view_height then
-            local added_lines = (opts.view_height) - #opts.this_frame_source
+        elseif #frame_source < view_height then
+            local added_lines = (view_height) - #frame_source
             idx = (selected_item + 1) - added_lines
         end
-        local item = opts.this_frame_source[idx].entry
+        local item = frame_source[idx].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         quit()
         on_accept(item)
