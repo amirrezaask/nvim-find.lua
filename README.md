@@ -7,7 +7,6 @@ Set of different finders for neovim, focues on simplicity.
 - files 
 - git_files 
 - helptags 
-- live_ripgrep (WIP)
 - lsp_document_symbols 
 - lsp_workspace_symbols 
 - oldfiles 
@@ -16,11 +15,14 @@ Set of different finders for neovim, focues on simplicity.
 
 
 ## Default Keybindings
-*<C-n> / <Down>* => Next entry,
-*<C-p> / <Up>* => Prev entry,
-*<C-y> / <Enter* => Accept Entry,
-*<C-d>* => Page Down,
-*<C-u>* => Page Up
+| Key Combination      | Action         |
+|----------------------|----------------|
+| `<C-n> / <Down>`     | Next entry     |
+| `<C-p> / <Up>`       | Prev entry     |
+| `<C-y> / <Enter>`    | Accept Entry   |
+| `<C-d>`              | Page Down      |
+| `<C-u>`              | Page Up        |
 
 ## TODO
-- interactive navigator
+- interactive file system navigator
+- live ripgrep buffer  ?
