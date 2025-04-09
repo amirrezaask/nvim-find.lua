@@ -35,6 +35,23 @@ local function floating_fuzzy(opts)
     local selected_item = 0
     local include_scores = opts.include_scores ~= false
     local frame_source = {}
+    local get_window_config = opts.get_window_config or function()
+        local width = math.floor(vim.o.columns * (opts.width_ratio or 0.9))
+        local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
+        local row = math.floor(vim.o.lines - height)
+        local col = math.floor((vim.o.columns - width) / 2)
+        return {
+            relative = "editor",
+            width = width,
+            height = height,
+            row = row,
+            col = col,
+            style = "minimal",
+            zindex = 100, -- Ensure it’s above other windows
+            border = 'rounded'
+        }
+    end
+
 
     local on_accept = opts[2]
 
@@ -42,36 +59,28 @@ local function floating_fuzzy(opts)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, prompt)
 
-    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.9))
-    local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
-    local row = math.floor(vim.o.lines - height)
-    local col = math.floor((vim.o.columns - width) / 2)
-
-
-    -- local width = math.floor(vim.o.columns * (opts.width_ratio or 0.8)) -- Slightly wider default
-    -- local height = math.floor(vim.o.lines * (opts.height_ratio or 0.5)) -- Slightly shorter default
-    -- local row = math.floor((vim.o.lines - height) / 2)                  -- Center vertically
-    -- local col = math.floor((vim.o.columns - width) / 2)                 -- Center horizontally
-
-    local win = vim.api.nvim_open_win(buf, true, {
-        relative = "editor",
-        width = width,
-        height = height,
-        row = row,
-        col = col,
-        style = "minimal",
-        zindex = 100, -- Ensure it’s above other windows
-        border = 'rounded'
-    })
+    local window_config = get_window_config()
+    local win = vim.api.nvim_open_win(buf, true, window_config)
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win })
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
     vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
 
-    local view_height = height - 1
+    local view_height = window_config.height - 1
     local visible_start = 0
 
     vim.cmd [[ startinsert ]]
+
+    vim.api.nvim_create_autocmd("VimResized", {
+        buffer = buf,
+        callback = function()
+            window_config = get_window_config()
+            vim.api.nvim_win_set_config(win, window_config)
+            view_height = window_config.height - 1
+            should_update = true
+        end
+    })
+
 
     local function update_source(entries)
         if opts.live then
@@ -128,13 +137,13 @@ local function floating_fuzzy(opts)
         for _, v in ipairs(frame_source) do
             local score_prefix = include_scores and string.format("%X ", v.score) or ""
             local line = padding .. score_prefix .. v.display
-            if #line < width then
-                line = line .. string.rep(" ", width - #line)
+            if #line < window_config.width then
+                line = line .. string.rep(" ", window_config.width - #line)
             end
             table.insert(buf_lines, line)
         end
 
-        vim.api.nvim_buf_set_lines(buf, 0, height - 1, false, buf_lines)
+        vim.api.nvim_buf_set_lines(buf, 0, window_config.height - 1, false, buf_lines)
 
         vim.api.nvim_buf_clear_namespace(buf, hl_ns, 0, -1)
 
