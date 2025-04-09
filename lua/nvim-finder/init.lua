@@ -161,6 +161,7 @@ end
 function M.lsp_workspace_symbols(opts)
     opts = opts or {}
 
+    opts.live = true
     opts[1] = require("nvim-finder.source.lsp").workspace_symbols(vim.api.nvim_get_current_buf())
     opts[2] = function(e)
         vim.cmd.edit(e.filename)

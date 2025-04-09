@@ -63,16 +63,30 @@ function M.document_symbols(bufnr)
 end
 
 function M.workspace_symbols(bufnr)
-    return function(callback)
-        local params = { query = "" }
+    return function(callback, query)
+        local params = { query = query or "" }
 
         vim.lsp.buf_request_all(bufnr, 'workspace/symbol', params, function(results)
             local entries = {}
 
-            for _, result in pairs(results) do
+            -- Check if we got any results or errors
+            if not results or next(results) == nil then
+                -- No results, call callback with empty table to avoid hanging
+                callback(entries)
+                return
+            end
+
+            for client_id, result in pairs(results) do
+                if result.error then
+                    -- Log the error if present, but continue processing other results
+                    vim.notify("LSP workspace/symbol error from client " .. client_id .. ": " .. result.error.message,
+                        vim.log.levels.WARN)
+                end
+
                 local symbols = result.result or {}
 
                 for _, sym in ipairs(symbols) do
+                    -- Gopls returns WorkspaceSymbol objects with location
                     local uri = sym.location.uri
                     local line = sym.location.range.start.line + 1
                     local filename = vim.uri_to_fname(uri)

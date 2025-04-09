@@ -17,6 +17,7 @@ end
 ---@field sorting_function fun(query: string, collection: table<Finder.Entry>)
 ---@field width_ratio number
 ---@field height_ratio number
+---@field live? boolean
 local function floating_fuzzy(opts)
     assert(opts, "opts is required")
     assert(opts[1], "opts[1] source is required")
@@ -53,6 +54,7 @@ local function floating_fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
+        border = 'rounded'
     })
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win })
@@ -68,6 +70,20 @@ local function floating_fuzzy(opts)
 
     vim.cmd [[ startinsert ]]
 
+    local function update_source(entries)
+        if opts.live then
+            source = entries
+        else
+            for _, entry in ipairs(entries) do
+                table.insert(source, entry)
+            end
+        end
+        -- Always start with selection at the bottom
+        selected_item = math.max(0, #source - 1)
+        visible_start = math.max(0, #source - view_height)
+        should_update = true
+    end
+
     local hl_ns = vim.api.nvim_create_namespace("nvim-finder.fuzzy")
 
     local function update()
@@ -80,6 +96,11 @@ local function floating_fuzzy(opts)
         buf_lines = {}
 
         if prev ~= user_input then
+            if opts.live then
+                opts[1](function(e)
+                    update_source(e)
+                end, user_input)
+            end
             sorting_function(user_input, source)
             table.sort(source, function(a, b)
                 return a.score < b.score
@@ -180,22 +201,12 @@ local function floating_fuzzy(opts)
         update()
     end))
 
-    local function initialize_source(entries)
-        for _, entry in ipairs(entries) do
-            table.insert(source, entry)
-        end
-        -- Always start with selection at the bottom
-        selected_item = math.max(0, #source - 1)
-        visible_start = math.max(0, #source - view_height)
-        should_update = true
-    end
-
     if type(opts[1]) == 'function' then
         opts[1](function(e)
-            initialize_source(e)
+            update_source(e)
         end)
     else
-        initialize_source(opts[1])
+        update_source(opts[1])
     end
 
     update()
