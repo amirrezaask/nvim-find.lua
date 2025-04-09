@@ -26,11 +26,11 @@ local function floating_fuzzy(opts)
     local should_update = false
 
     local user_input = ""
-    local prompt = opts.prompt or '> '
-    local title = opts.title or 'Fuzzy Finder'
+    local prompt_char = opts.prompt_char or '❯ '
+    local prompt = (opts.prompt or " ") .. prompt_char
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
+    local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
     local buf_lines = {}
     local selected_item = 0
     local include_scores = opts.include_scores ~= false
@@ -42,10 +42,16 @@ local function floating_fuzzy(opts)
     vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
     vim.fn.prompt_setprompt(buf, prompt)
 
-    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.5))
+    local width = math.floor(vim.o.columns * (opts.width_ratio or 0.9))
     local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
     local row = math.floor(vim.o.lines - height)
     local col = math.floor((vim.o.columns - width) / 2)
+
+
+    -- local width = math.floor(vim.o.columns * (opts.width_ratio or 0.8)) -- Slightly wider default
+    -- local height = math.floor(vim.o.lines * (opts.height_ratio or 0.5)) -- Slightly shorter default
+    -- local row = math.floor((vim.o.lines - height) / 2)                  -- Center vertically
+    -- local col = math.floor((vim.o.columns - width) / 2)                 -- Center horizontally
 
     local win = vim.api.nvim_open_win(buf, true, {
         relative = "editor",
@@ -54,6 +60,7 @@ local function floating_fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
+        zindex = 100, -- Ensure it’s above other windows
         border = 'rounded'
     })
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
@@ -63,10 +70,6 @@ local function floating_fuzzy(opts)
 
     local view_height = height - 1
     local visible_start = 0
-
-    if opts.set_winbar then
-        vim.api.nvim_set_option_value('winbar', title, { win = win })
-    end
 
     vim.cmd [[ startinsert ]]
 

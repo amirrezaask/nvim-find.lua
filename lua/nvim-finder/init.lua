@@ -24,6 +24,7 @@ function M.files(opts)
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = opts.title or ('Files ' .. opts.path)
+    opts.prompt = 'Files '
 
     if vim.fn.executable("find") == 1 then
         opts[1] = require("nvim-finder.source.find")(opts)
