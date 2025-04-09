@@ -157,7 +157,7 @@ function M.lsp_document_symbols(opts)
     require "nvim-finder.fuzzy" (opts)
 end
 
----@class Finder.LspWorkspaceSymbols: Finder.FuzzyOpts
+---@class Finder.LspWorkspaceSymbolsOpts: Finder.FuzzyOpts
 function M.lsp_workspace_symbols(opts)
     opts = opts or {}
 
@@ -165,6 +165,24 @@ function M.lsp_workspace_symbols(opts)
     opts[2] = function(e)
         vim.cmd.edit(e.filename)
         vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+    end
+
+
+    require "nvim-finder.fuzzy" (opts)
+end
+
+---@class Finder.ColorschemesOpts: Finder.FuzzyOpts
+function M.colorschemes(opts)
+    opts = opts or {}
+    local colorschemes = vim.fn.getcompletion("", "color")
+    local entries = {}
+    for _, c in ipairs(colorschemes) do
+        table.insert(entries, { display = c, entry = c, score = 0 })
+    end
+
+    opts[1] = entries
+    opts[2] = function(e)
+        vim.cmd.colorscheme(e)
     end
 
 

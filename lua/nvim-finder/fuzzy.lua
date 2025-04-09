@@ -85,7 +85,7 @@ local function floating_fuzzy(opts)
                 return a.score < b.score
             end)
 
-            selected_item = math.max(0, math.min(#source - 1, #source - 1))
+            selected_item = math.max(0, #source - 1)
             visible_start = math.max(0, #source - view_height)
         end
 
