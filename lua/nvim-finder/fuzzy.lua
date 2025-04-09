@@ -29,7 +29,7 @@ local function floating_fuzzy(opts)
     local title = opts.title or 'Fuzzy Finder'
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
+    local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
     local buf_lines = {}
     local selected_item = 0
     local include_scores = opts.include_scores ~= false
@@ -84,16 +84,16 @@ local function floating_fuzzy(opts)
             table.sort(source, function(a, b)
                 return a.score < b.score
             end)
-
+            -- Always select the last item when input changes
             selected_item = math.max(0, #source - 1)
+            -- Adjust visible_start to show the bottom
             visible_start = math.max(0, #source - view_height)
         end
 
         frame_source = {}
-        for _, v in ipairs(table.sub(source, visible_start + 1, visible_start + view_height)) do
-            if v.matched ~= false then
-                table.insert(frame_source, v)
-            end
+        local visible_end = math.min(visible_start + view_height, #source)
+        for i = visible_start + 1, visible_end do
+            table.insert(frame_source, source[i])
         end
 
         local pad_lines = view_height - #frame_source
@@ -125,15 +125,15 @@ local function floating_fuzzy(opts)
 
     local function shift_cursor(delta)
         if #source == 0 then return end
-        selected_item = (selected_item + delta + #source) % #source
+        local new_selected = (selected_item + delta + #source) % #source
 
+        selected_item = new_selected
         if selected_item < visible_start then
             visible_start = selected_item
         elseif selected_item >= visible_start + view_height then
             visible_start = selected_item - view_height + 1
         end
-
-        visible_start = math.max(0, visible_start)
+        visible_start = math.max(0, math.min(visible_start, #source - view_height))
 
         should_update = true
         update()
@@ -181,8 +181,11 @@ local function floating_fuzzy(opts)
     end))
 
     local function initialize_source(entries)
-        source = entries
-        selected_item = math.max(0, math.min(#source - 1, #source - 1))
+        for _, entry in ipairs(entries) do
+            table.insert(source, entry)
+        end
+        -- Always start with selection at the bottom
+        selected_item = math.max(0, #source - 1)
         visible_start = math.max(0, #source - view_height)
         should_update = true
     end
