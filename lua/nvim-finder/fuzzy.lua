@@ -30,14 +30,10 @@ local function floating_fuzzy(opts)
     local source = {}
     local padding = opts.padding or '  '
     local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
-    -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzy')
-    -- local sorting_function = opts.sorting_function or require('nvim-finder.alg.fzf')
     local buf_lines = {}
     local selected_item = 0
-    local include_scores = opts.include_scores or true
-    local visible_start = 0
+    local include_scores = opts.include_scores ~= false
     local frame_source = {}
-
 
     local on_accept = opts[2]
 
@@ -57,16 +53,18 @@ local function floating_fuzzy(opts)
         row = row,
         col = col,
         style = "minimal",
-        -- border = "rounded",
     })
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win })
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
     vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
 
-    local view_height = (height - 1)
+    local view_height = height - 1
+    local visible_start = 0
 
-    if opts.set_winbar then vim.api.nvim_set_option_value('winbar', title, { win = win }) end
+    if opts.set_winbar then
+        vim.api.nvim_set_option_value('winbar', title, { win = win })
+    end
 
     vim.cmd [[ startinsert ]]
 
@@ -74,101 +72,77 @@ local function floating_fuzzy(opts)
 
     local function update()
         if not should_update then return end
-        if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
-            return
-        end
+        if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then return end
+
         local prev = user_input
         local prompt_line = vim.api.nvim_get_current_line()
-
         user_input = prompt_line:sub(#prompt + 1)
         buf_lines = {}
 
-        local t0 = vim.uv.hrtime()
         if prev ~= user_input then
             sorting_function(user_input, source)
             table.sort(source, function(a, b)
-                return (a.score) < (b.score)
+                return a.score < b.score
             end)
-        end
-        local t1 = (vim.uv.hrtime() - t0) / 1e6 -- after sorting
 
-        if visible_start == 0 then
-            if #source < view_height then
-                visible_start = 1
-            else
-                visible_start = math.abs(#source - view_height)
-            end
+            selected_item = math.max(0, math.min(#source - 1, #source - 1))
+            visible_start = math.max(0, #source - view_height)
         end
-        local result_count = 0
-
-        print(#source, visible_start, view_height)
 
         frame_source = {}
-        for _, v in ipairs(table.sub(source, visible_start, visible_start + view_height)) do
+        for _, v in ipairs(table.sub(source, visible_start + 1, visible_start + view_height)) do
             if v.matched ~= false then
-                result_count = result_count + 1
                 table.insert(frame_source, v)
             end
         end
 
-
-        local added_lines = 0
-        if #frame_source < (view_height) then
-            for i = 1, (view_height) - #frame_source do
-                added_lines = added_lines + 1
-                table.insert(buf_lines, i, "")
-            end
+        local pad_lines = view_height - #frame_source
+        for _ = 1, pad_lines do
+            table.insert(buf_lines, "")
         end
 
         for _, v in ipairs(frame_source) do
-            local score_prefix = string.format("%X ", v.score)
-            if not include_scores then score_prefix = "" end
+            local score_prefix = include_scores and string.format("%X ", v.score) or ""
             local line = padding .. score_prefix .. v.display
             if #line < width then
                 line = line .. string.rep(" ", width - #line)
             end
-
             table.insert(buf_lines, line)
         end
 
-
-        vim.api.nvim_buf_set_lines(buf, 0, -2, false, buf_lines)
-
-        local actual_lines = #frame_source + added_lines
-
-        _ = FINDER_FUZZY_DEBUG and print(
-            "Entries", #source,
-            "Cost", t1
-        )
-
-        if selected_item == nil then selected_item = actual_lines - 1 end
-        if selected_item < actual_lines - result_count then
-            selected_item = actual_lines - 1
-        end
-
-        if selected_item >= actual_lines then
-            selected_item = added_lines
-        end
+        vim.api.nvim_buf_set_lines(buf, 0, height - 1, false, buf_lines)
 
         vim.api.nvim_buf_clear_namespace(buf, hl_ns, 0, -1)
 
-        vim.hl.range(buf, hl_ns, "Question", { selected_item, 0 }, { selected_item, -1 })
-        vim.hl.range(buf, hl_ns, "Visual", { selected_item, 0 }, { selected_item, -1 })
+        local highlight_line = pad_lines + (selected_item - visible_start)
+        if highlight_line >= 0 and highlight_line < view_height then
+            vim.hl.range(buf, hl_ns, "Question", { highlight_line, 0 }, { highlight_line, -1 })
+            vim.hl.range(buf, hl_ns, "Visual", { highlight_line, 0 }, { highlight_line, -1 })
+        end
 
         should_update = false
     end
 
-    local function down()
-        selected_item = selected_item + 1
+    local function shift_cursor(delta)
+        if #source == 0 then return end
+        selected_item = (selected_item + delta + #source) % #source
+
+        if selected_item < visible_start then
+            visible_start = selected_item
+        elseif selected_item >= visible_start + view_height then
+            visible_start = selected_item - view_height + 1
+        end
+
+        visible_start = math.max(0, visible_start)
+
         should_update = true
         update()
     end
 
-    local function up()
-        selected_item = selected_item - 1
-        should_update = true
-        update()
-    end
+    local function down() shift_cursor(1) end
+    local function up() shift_cursor(-1) end
+    local function page_down() shift_cursor(view_height) end
+    local function page_up() shift_cursor(-view_height) end
 
     local function quit()
         vim.api.nvim_win_close(win, true)
@@ -176,72 +150,50 @@ local function floating_fuzzy(opts)
     end
 
     local function accept()
-        local idx = selected_item + 1
-        if height < #frame_source then
-            local view_offset = #frame_source - height - 2
-            idx = selected_item + view_offset + 1
-        elseif #frame_source < view_height then
-            local added_lines = (view_height) - #frame_source
-            idx = (selected_item + 1) - added_lines
-        end
-        local item = frame_source[idx].entry
+        if not source[selected_item + 1] then return end
+        local item = source[selected_item + 1].entry
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         quit()
         on_accept(item)
     end
 
-    vim.keymap.set({ "n", "i" }, "<C-p>", function()
-        up()
-    end, { buffer = buf })
-
-    vim.keymap.set({ "n", "i" }, "<C-n>", function()
-        down()
-    end, { buffer = buf })
-
-    vim.keymap.set({ "n", "i" }, "<CR>", function()
-        accept()
-    end, { buffer = buf })
-
-    vim.keymap.set({ "n", "i" }, "<C-c>", function()
-        quit()
-    end, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-p>", up, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-n>", down, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-u>", page_up, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-d>", page_down, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<CR>", accept, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-c>", quit, { buffer = buf })
 
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         buffer = buf,
         callback = function()
-            if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then
-                return
-            end
+            if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then return end
             should_update = true
             update()
         end,
     })
-
 
     local timer = vim.uv.new_timer()
     timer:start(10, REFRESH_MS, vim.schedule_wrap(function()
         update()
     end))
 
+    local function initialize_source(entries)
+        source = entries
+        selected_item = math.max(0, math.min(#source - 1, #source - 1))
+        visible_start = math.max(0, #source - view_height)
+        should_update = true
+    end
+
     if type(opts[1]) == 'function' then
         opts[1](function(e)
-            for _, v in ipairs(e) do
-                table.insert(source, v)
-            end
-            selected_item = -1
-            should_update = true
+            initialize_source(e)
         end)
     else
-        source = {}
-        should_update = true
-        source = opts[1]
+        initialize_source(opts[1])
     end
 
     update()
 end
-
--- require("nvim-finder").__reload()
--- F = require("nvim-finder")
-
 
 return floating_fuzzy
