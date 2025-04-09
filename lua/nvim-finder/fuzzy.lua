@@ -159,8 +159,8 @@ local function floating_fuzzy(opts)
 
     vim.keymap.set({ "n", "i" }, "<C-p>", up, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<C-n>", down, { buffer = buf })
-    vim.keymap.set({ "n", "i" }, "<C-,>", page_up, { buffer = buf })
-    vim.keymap.set({ "n", "i" }, "<C-.>", page_down, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-u>", page_up, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-d>", page_down, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<CR>", accept, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<C-c>", quit, { buffer = buf })
 
