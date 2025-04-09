@@ -14,6 +14,13 @@ Set of different finders for neovim, focues on simplicity.
 - ripgrep_fuzzy 
 - ripgrep_qf 
 
+
+## Default Keybindings
+*<C-n> / <Down>* => Next entry,
+*<C-p> / <Up>* => Prev entry,
+*<C-y> / <Enter* => Accept Entry,
+*<C-d>* => Page Down,
+*<C-u>* => Page Up
+
 ## TODO
-- Scrolling in fuzzy results
 - interactive navigator
