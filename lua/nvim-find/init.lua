@@ -16,7 +16,7 @@
 
 local home = vim.env.HOME or ""
 local M = {}
-local scoring = require("nvim-finder.scoring")
+local scoring = require("nvim-find.scoring")
 
 function M.floating_fuzzy(opts)
     assert(opts, "opts is required")
