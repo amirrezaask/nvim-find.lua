@@ -14,6 +14,7 @@
 ---@field height_ratio number
 ---@field live? boolean
 
+local home = vim.env.HOME or ""
 local M = {}
 local scoring = require("nvim-finder.scoring")
 
@@ -30,9 +31,11 @@ function M.floating_fuzzy(opts)
         return result
     end
 
-    local REFRESH_MS = 15 -- every 15 milliseconds we refresh fuzzy window if there is a need for updating.
+    local REFRESH_MS = 15
     local should_update = false
-    local direction = opts.direction or 'b2t' or 'b2t'
+    local direction = opts.direction or 'b2t'                     -- 'b2t' or 't2b'
+    local truncate_long_lines = opts.truncate_long_lines or false -- New option to control truncation
+    local max_line_length = opts.max_line_length or 200           -- Optional max length for truncation
 
     local user_input = ""
     local prompt_char = opts.prompt_char or '❯ '
@@ -66,28 +69,22 @@ function M.floating_fuzzy(opts)
             row = row,
             col = col,
             style = "minimal",
-            zindex = 100, -- Ensure it’s above other windows
-            border = 'rounded'
+            zindex = 100,
         }
     end
-
 
     local on_accept = opts[2]
 
     local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
-    vim.fn.prompt_setprompt(buf, prompt)
-
     local window_config = get_window_config()
     local win = vim.api.nvim_open_win(buf, true, window_config)
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
-    vim.api.nvim_set_option_value('wrap', false, { win = win })
+    vim.api.nvim_set_option_value('wrap', false, { win = win }) -- Keep wrap off, but handle long lines below
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
     vim.api.nvim_set_option_value('concealcursor', 'nc', { win = win })
 
-    local view_height = window_config.height - 1
+    local view_height = window_config.height - 1 -- Account for prompt line
     local visible_start = 0
-
 
     vim.api.nvim_create_autocmd("VimResized", {
         buffer = buf,
@@ -99,7 +96,6 @@ function M.floating_fuzzy(opts)
         end
     })
 
-
     local function update_source(entries)
         if opts.live then
             source = entries
@@ -108,9 +104,13 @@ function M.floating_fuzzy(opts)
                 table.insert(source, entry)
             end
         end
-        -- Always start with selection at the bottom
-        selected_item = math.max(0, #source - 1)
-        visible_start = math.max(0, #source - view_height)
+        if direction == 'b2t' then
+            selected_item = #source > 0 and #source - 1 or 0
+            visible_start = math.max(0, #source - view_height)
+        else -- t2b
+            selected_item = 0
+            visible_start = 0
+        end
         should_update = true
     end
 
@@ -121,8 +121,7 @@ function M.floating_fuzzy(opts)
         if not vim.api.nvim_buf_is_valid(buf) or not vim.api.nvim_buf_is_loaded(buf) then return end
 
         local prev = user_input
-        local prompt_line = vim.api.nvim_get_current_line()
-        user_input = prompt_line:sub(#prompt + 1)
+        user_input = vim.api.nvim_get_current_line():sub(#prompt + 1)
         buf_lines = {}
 
         if prev ~= user_input then
@@ -135,15 +134,18 @@ function M.floating_fuzzy(opts)
                 table.sort(source, function(a, b)
                     if direction == 'b2t' then
                         return a.score < b.score
-                    elseif direction == 't2b' then
+                    else -- t2b
                         return a.score > b.score
                     end
                 end)
             end
-            -- Always select the last item when input changes
-            selected_item = math.max(0, #source - 1)
-            -- Adjust visible_start to show the bottom
-            visible_start = math.max(0, #source - view_height)
+            if direction == 'b2t' then
+                selected_item = #source > 0 and #source - 1 or 0
+                visible_start = math.max(0, #source - view_height)
+            else -- t2b
+                selected_item = 0
+                visible_start = 0
+            end
         end
 
         frame_source = {}
@@ -152,31 +154,58 @@ function M.floating_fuzzy(opts)
             table.insert(frame_source, source[i])
         end
 
-        local pad_lines = view_height - #frame_source
-        for _ = 1, pad_lines do
-            table.insert(buf_lines, "")
-        end
-
-        for _, v in ipairs(frame_source) do
-            local score_prefix = include_scores and string.format("%X ", v.score) or ""
-            local line = padding .. score_prefix .. v.display
-            if #line < window_config.width then
-                line = line .. string.rep(" ", window_config.width - #line)
+        if direction == 'b2t' then
+            local pad_lines = view_height - #frame_source
+            for _ = 1, pad_lines do
+                table.insert(buf_lines, "")
             end
-            table.insert(buf_lines, line)
+            for _, v in ipairs(frame_source) do
+                local score_prefix = include_scores and string.format("%X ", v.score) or ""
+                local line = padding .. score_prefix .. v.display
+                -- Optional truncation
+                if truncate_long_lines and #line > max_line_length then
+                    line = line:sub(1, max_line_length - 3) .. "..."
+                end
+                -- Removed padding to window width to avoid truncation
+                table.insert(buf_lines, line)
+            end
+            table.insert(buf_lines, prompt .. user_input)
+        else -- t2b
+            table.insert(buf_lines, prompt .. user_input)
+            for _, v in ipairs(frame_source) do
+                local score_prefix = include_scores and string.format("%X ", v.score) or ""
+                local line = padding .. score_prefix .. v.display
+                -- Optional truncation
+                if truncate_long_lines and #line > max_line_length then
+                    line = line:sub(1, max_line_length - 3) .. "..."
+                end
+                table.insert(buf_lines, line)
+            end
+            local pad_lines = view_height - #frame_source
+            for _ = 1, pad_lines do
+                table.insert(buf_lines, "")
+            end
         end
 
-        vim.api.nvim_buf_set_lines(buf, 0, window_config.height - 1, false, buf_lines)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, buf_lines)
 
         vim.api.nvim_buf_clear_namespace(buf, hl_ns, 0, -1)
 
-        local highlight_line = pad_lines + (selected_item - visible_start)
+        local highlight_line
+        if direction == 'b2t' then
+            local frame_offset = selected_item - visible_start
+            highlight_line = view_height - (#frame_source - frame_offset - 1) - 1
+        else -- t2b
+            highlight_line = (selected_item - visible_start) + 1
+        end
+
         if highlight_line >= 0 and highlight_line < view_height then
             vim.hl.range(buf, hl_ns, "Question", { highlight_line, 0 }, { highlight_line, -1 })
             vim.hl.range(buf, hl_ns, "Visual", { highlight_line, 0 }, { highlight_line, -1 })
         end
 
         vim.schedule(function()
+            vim.api.nvim_win_set_cursor(win, { direction == 'b2t' and #buf_lines or 1, #prompt + #user_input })
             vim.cmd [[ startinsert ]]
         end)
         should_update = false
@@ -204,6 +233,7 @@ function M.floating_fuzzy(opts)
     local function page_up() shift_cursor(-view_height) end
 
     local function quit()
+        vim.cmd [[ stopinsert ]]
         vim.api.nvim_win_close(win, true)
         vim.api.nvim_buf_delete(buf, { force = true })
     end
@@ -269,35 +299,24 @@ local function read_output_by_line(program, args, cwd, line_to_entry)
         local handle
         local stdout = uv.new_pipe(false)
         local stderr = uv.new_pipe(false)
+        local output_buffer = "" -- Accumulate all stdout data here
 
         handle = uv.spawn(program, {
             args = args,
             cwd = cwd,
             stdio = { nil, stdout, stderr },
         }, function(code, signal)
+            -- Called when the process exits
             stdout:read_stop()
+            stderr:read_stop()
             stdout:close()
+            stderr:close()
             handle:close()
-        end)
 
-        uv.read_start(stderr, function(err, data)
-            if err then
-                print("stderr " .. program, err)
-                return
-            end
-            if data then
-                print("stderr " .. program, data)
-            end
-        end)
-
-        uv.read_start(stdout, function(err, data)
-            if err then
-                print(program, err)
-                return
-            end
+            -- Process the accumulated output only when the process is done
             local results = {}
-            if data then
-                local lines = vim.split(data, "\n")
+            if output_buffer ~= "" then
+                local lines = vim.split(output_buffer, "\n", { trimempty = true })
                 for _, line in ipairs(lines) do
                     if line ~= "" then
                         local entry = line_to_entry(line)
@@ -306,49 +325,106 @@ local function read_output_by_line(program, args, cwd, line_to_entry)
                         end
                     end
                 end
-                cb(results)
+            end
+            cb(results) -- Call the callback with the complete results
+        end)
+
+        if not handle then
+            print("Failed to spawn " .. program)
+            cb({})
+            return
+        end
+
+        uv.read_start(stderr, function(err, data)
+            if err then
+                print("stderr error for " .. program .. ": " .. err)
+                return
+            end
+            if data then
+                print("stderr from " .. program .. ": " .. data)
+            end
+        end)
+
+        uv.read_start(stdout, function(err, data)
+            if err then
+                print("stdout error for " .. program .. ": " .. err)
+                return
+            end
+            if data then
+                -- Accumulate data instead of processing immediately
+                output_buffer = output_buffer .. data
             end
         end)
     end
 end
-local function shorten_path(path)
-    local THRESHOLD = 80
+local function shorten_path(path, cwd)
+    local THRESHOLD = 40 -- Default from snacks.nvim picker.util: smart path truncate
     if not path or path == "" then
         return ""
     end
 
-    local parts = {}
-    for part in path:gmatch("[^/]+") do
-        table.insert(parts, part)
+    -- Normalize cwd: ensure it ends with a slash and handle nil
+    cwd = cwd or ""
+    if cwd ~= "" and cwd:sub(-1) ~= "/" then
+        cwd = cwd .. "/"
     end
 
-    local is_absolute = path:sub(1, 1) == "/"
-
-    if #parts <= 1 then
-        return path
+    -- Get home directory from environment
+    if home ~= "" and home:sub(-1) ~= "/" then
+        home = home .. "/"
     end
 
-    -- Build the shortened path
-    local result = {}
-    for i, part in ipairs(parts) do
-        if i >= #parts - 1 then
-            table.insert(result, part)
-        else
-            table.insert(result, part:sub(1, 1))
+    -- Remove home prefix from path if present, then cwd if it follows
+    local relative_path = path
+    if home ~= "" and path:sub(1, #home) == home then
+        relative_path = path:sub(#home + 1)
+        -- If cwd includes home, adjust cwd to remove home as well
+        if cwd:sub(1, #home) == home then
+            cwd = cwd:sub(#home + 1)
         end
     end
 
-    -- Join components and add leading slash if original was absolute
-    local shortened = table.concat(result, "/")
-    if is_absolute then
-        shortened = "/" .. shortened
+    -- Remove cwd prefix from the remaining path if present
+    if cwd ~= "" and relative_path:sub(1, #cwd) == cwd then
+        relative_path = relative_path:sub(#cwd + 1)
     end
 
-    if #path < THRESHOLD then return path end
+    -- If the resulting path is shorter than threshold, return it
+    if #relative_path <= THRESHOLD then
+        return relative_path
+    end
+
+    local parts = {}
+    for part in relative_path:gmatch("[^/]+") do
+        table.insert(parts, part)
+    end
+
+    -- If no parts or just one part, return the relative path
+    if #parts <= 1 then
+        return relative_path
+    end
+
+    -- Keep the first part, parent directory, and file name
+    local first_part = parts[1] or ""
+    local parent = #parts > 1 and parts[#parts - 1] or ""
+    local filename = parts[#parts] or ""
+
+    -- Build the shortened path with ellipsis, mimicking snacks.nvim
+    local shortened
+    if #parts <= 2 then
+        -- If only two parts (e.g., "dir/file"), no ellipsis needed
+        shortened = first_part .. "/" .. filename
+    else
+        -- Include first part, ellipsis, parent, and file
+        shortened = first_part .. "/…/" .. parent .. "/" .. filename
+        -- If still too long, trim further by keeping only first and last parts
+        if #shortened > THRESHOLD then
+            shortened = first_part .. "/…/" .. filename
+        end
+    end
 
     return shortened
 end
-
 ---@class Finder.FilesOpts: Finder.FuzzyOpts
 ---@field path string path to set as CWD, if not set it will be root of git repository.
 ---@param opts Finder.FilesOpts
@@ -358,15 +434,14 @@ function M.files(opts)
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = opts.title or ('Files ' .. opts.path)
     opts.prompt = ''
-    opts.width_ratio = 0.55
-    opts.height_ratio = 0.85
+    -- opts.width_ratio = 0.55
+    -- opts.height_ratio = 0.85
 
     local function luv_find(opts)
         opts = opts or {}
 
-        local expand = require("nvim-finder.path").expand
         local uv = vim.loop
-        opts.path = expand(opts.path) -- nil check
+        opts.path = vim.fn.expand(opts.path) -- nil check
         if opts.path == nil then return end
         if opts.starting_directory == nil then opts.starting_directory = opts.path end
         opts.hidden = opts.hidden or false
@@ -430,7 +505,7 @@ function M.files(opts)
                             if entry.type == 'file' then
                                 local display_path = entry_path
                                 if opts.shorten_paths then
-                                    display_path = shorten_path(display_path)
+                                    display_path = shorten_path(display_path, opts.starting_directory)
                                 end
                                 table.insert(files, {
                                     data = {
@@ -476,7 +551,7 @@ function M.files(opts)
                 return {
                     data = { filename = line },
                     score = 0,
-                    display = line:sub(#opts.path + 1)
+                    display = shorten_path(line, opts.cwd)
                 }
             end
         )
@@ -489,6 +564,7 @@ function M.files(opts)
     end
 
     opts[2] = function(e)
+        vim.print(e)
         vim.cmd.edit(e.filename)
     end
 
