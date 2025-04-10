@@ -1,28 +1,31 @@
 # Nvim-Finder
-Set of different finders for neovim, focues on simplicity.
+A collection of straightforward finders for Neovim, designed with simplicity in mind.
 
-- buffers 
-- diagnostics 
-- diagnostics_buffer 
-- files 
-- git_files 
-- helptags 
-- lsp_document_symbols 
-- lsp_workspace_symbols 
-- oldfiles 
-- ripgrep_fuzzy 
-- ripgrep_qf 
+## Available Finders
+- `buffers` - List open buffers
+- `diagnostics` - Show all diagnostics
+- `diagnostics_buffer` - Show diagnostics for current buffer
+- `files` - Browse files
+- `git_files` - List git-managed files
+- `helptags` - Search help tags
+- `lsp_document_symbols` - LSP symbols in current document
+- `lsp_workspace_symbols` - LSP symbols across workspace
+- `oldfiles` - Recent files
+- `ripgrep_fuzzy` - Fuzzy search with ripgrep
+- `ripgrep_qf` - Ripgrep with quickfix list
 
+## Why Use Nvim-Finder?
+You might find more feature-rich alternatives in [snacks.nvim](https://github.com/folke/snacks.nvim) or [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), which have seen more development time. Nvim-Finder was created primarily for my personal use cases—like disabling preview buffers, which I find unhelpful, and also this was a learning project for me to learn both about how to manage UIs and fast searching text in real time.
 
 ## Default Keybindings
-| Key Combination      | Action         |
-|----------------------|----------------|
-| `<C-n> / <Down>`     | Next entry     |
-| `<C-p> / <Up>`       | Prev entry     |
-| `<C-y> / <Enter>`    | Accept Entry   |
-| `<C-d>`              | Page Down      |
-| `<C-u>`              | Page Up        |
+| Keybinding         | Action          |
+|--------------------|-----------------|
+| `<C-n>` / `<Down>` | Next entry      |
+| `<C-p>` / `<Up>`   | Previous entry  |
+| `<C-y>` / `<Enter>`| Accept entry    |
+| `<C-d>`            | Page down       |
+| `<C-u>`            | Page up         |
 
 ## TODO
-- interactive file system navigator
-- live ripgrep buffer  ?
+- Interactive filesystem navigator
+- Live ripgrep buffer (maybe?)
