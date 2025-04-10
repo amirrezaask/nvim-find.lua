@@ -1,9 +1,11 @@
--- vim.opt.runtimepath:append("~/src/nvim-finder")
-local M = {}
+---@class Finder.Entry
+---@field data any
+---@field score number
+---@field display string
 
 ---@class Finder.FuzzyOpts
 ---@field [1] table<Finder.Entry> | fun(cb: fun(new_entry))
----@field [2] fun(selected_entry: Finder.Entry)
+---@field [2] fun(selected_entry: any)
 ---@field prompt? string
 ---@field title?  string
 ---@field padding? string
@@ -11,6 +13,9 @@ local M = {}
 ---@field width_ratio number
 ---@field height_ratio number
 ---@field live? boolean
+
+local M = {}
+
 function M.floating_fuzzy(opts)
     assert(opts, "opts is required")
     assert(opts[1], "opts[1] source is required")
@@ -247,18 +252,54 @@ function M.floating_fuzzy(opts)
     update()
 end
 
----@class Finder.Entry
----@field data any
----@field score number
----@field display string
-
 function M.__reload()
     package.loaded["nvim-finder"] = nil
     package.loaded["nvim-finder.alg.fzy"] = nil
-    package.loaded["nvim-finder.source.find"] = nil
-    package.loaded["nvim-finder.source.luv"] = nil
-    package.loaded["nvim-finder.source.ripgrep"] = nil
-    package.loaded["nvim-finder.fuzzy"] = nil
+end
+
+local function read_output_by_line(program, args, cwd, line_to_entry)
+    return function(cb)
+        local uv = vim.uv
+        local handle
+        local stdout = uv.new_pipe(false)
+        local stderr = uv.new_pipe(false)
+
+        handle = uv.spawn(program, {
+            args = args,
+            stdio = { nil, stdout, stderr },
+        }, function(code, signal)
+            stdout:read_stop()
+            stdout:close()
+            handle:close()
+        end)
+
+        uv.read_start(stderr, function(err, data)
+            if err then
+                print("stderr " .. program, err)
+                return
+            end
+            if data then
+                print("stderr " .. program, data)
+            end
+        end)
+
+        uv.read_start(stdout, function(err, data)
+            if err then
+                print(program, err)
+                return
+            end
+            local results = {}
+            if data then
+                local lines = vim.split(data, "\n")
+                for _, line in ipairs(lines) do
+                    if line ~= "" then
+                        table.insert(results, line_to_entry(line))
+                    end
+                end
+                cb(results)
+            end
+        end)
+    end
 end
 
 ---@class Finder.FilesOpts: Finder.FuzzyOpts
@@ -269,14 +310,136 @@ function M.files(opts)
     opts = opts or {}
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = opts.title or ('Files ' .. opts.path)
-    opts.prompt = 'Files '
+    opts.prompt = ''
     opts.width_ratio = 0.55
     opts.height_ratio = 0.85
 
+    local function luv_find(opts)
+        opts = opts or {}
+
+        local shorten_path = require("nvim-finder.path").shorten
+        local expand = require("nvim-finder.path").expand
+        local uv = vim.loop
+        opts.path = expand(opts.path) -- nil check
+        if opts.path == nil then return end
+        if opts.starting_directory == nil then opts.starting_directory = opts.path end
+        opts.hidden = opts.hidden or false
+        opts.exclude = opts.exclude or {}
+        opts.shorten_paths = opts.shorten_paths or true
+
+        -- Normalize exclude to a list of glob patterns
+        local exclude_patterns = {}
+        if type(opts.exclude) == "string" then
+            exclude_patterns = { opts.exclude }
+        elseif vim.islist(opts.exclude) then
+            exclude_patterns = opts.exclude
+        end
+
+        -- Checks if a path matches any exclude glob
+        local function is_excluded(entry_path)
+            for _, pattern in ipairs(exclude_patterns) do
+                if entry_path:match(pattern) then
+                    return true
+                end
+            end
+            return false
+        end
+
+        return function(cb)
+            uv.fs_opendir(opts.path, function(err, dir)
+                if err then
+                    -- log("error reading directory", err)
+                    return
+                end
+
+                local function continue_reading_fs_entries()
+                    uv.fs_readdir(dir, function(err, entries)
+                        if err then
+                            uv.fs_closedir(dir)
+                            -- log("error in reading directory", err)
+                            return
+                        end
+
+
+                        local files = {}
+
+                        if not entries then
+                            uv.fs_closedir(dir)
+                            return
+                        end
+
+                        for _, entry in ipairs(entries) do
+                            local entry_path = opts.path .. "/" .. entry.name
+
+                            -- Skip excluded entries based on glob
+                            if is_excluded(entry_path) then
+                                goto continue
+                            end
+
+                            -- Skip hidden files unless opts.hidden is true
+                            if not opts.hidden and entry.name:sub(1, 1) == "." then
+                                goto continue
+                            end
+
+                            if entry.type == 'file' then
+                                local display_path = entry_path
+                                if opts.shorten_paths then
+                                    display_path = shorten_path(display_path)
+                                end
+                                table.insert(files, {
+                                    data = {
+                                        filename = entry_path,
+                                    },
+                                    display = display_path,
+                                    score = 0
+                                })
+                            elseif entry.type == "directory" then
+                                local new_opts = {}
+                                for k, v in pairs(opts) do
+                                    new_opts[k] = v
+                                end
+                                new_opts.path = entry_path
+                                vim.schedule(function()
+                                    local f = luv_find(new_opts)
+                                    if f == nil then return end
+                                    f(cb)
+                                end)
+                            end
+
+                            cb(files)
+
+                            ::continue::
+                        end
+
+                        continue_reading_fs_entries()
+                    end)
+                end
+
+                continue_reading_fs_entries()
+            end)
+        end
+    end
+
+    local function find(opts)
+        opts.cwd = vim.fn.expand(opts.cwd or vim.fs.root(vim.fn.getcwd(), '.git'))
+        --TODO(amirrez): support excludes
+        return read_output_by_line("find",
+            opts.args or { opts.cwd, "-type", "f", "-not", "-path", "**/.git/*", "-not", "-path", "**/vendor/*" },
+            opts.cwd,
+            function(line)
+                return {
+                    data = { filename = line },
+                    score = 0,
+                    display = line:sub(#opts.path + 1)
+                }
+            end
+        )
+    end
+
     if vim.fn.executable("find") == 1 then
-        opts[1] = require("nvim-finder.source.find")(opts)
+        opts[1] = find(opts)
     else
-        opts[1] = require("nvim-finder.source.luv")(opts)
+        opts[1] = luv_find(opts)
     end
 
     opts[2] = function(e)
@@ -294,31 +457,6 @@ function M.ripgrep_qf(cwd)
             cwd = cwd or vim.fn.getcwd(),
         })
     end)
-end
-
-function M.live_ripgrep(opts)
-end
-
-function M.diagnostics()
-    M.floating_fuzzy {
-        title = "Diagnostics",
-        require('nvim-finder.source.vim').diagnostics(nil),
-        function(e)
-            vim.cmd.edit(e.filename)
-            vim.api.nvim_win_set_cursor(0, { e.line, 0 })
-        end,
-    }
-end
-
-function M.diagnostics_buffer()
-    M.floating_fuzzy {
-        title = "Diagnostics Buffer",
-        require('nvim-finder.source.vim').diagnostics(vim.api.nvim_get_current_buf()),
-        function(e)
-            vim.cmd.edit(e.filename)
-            vim.api.nvim_win_set_cursor(0, { e.line, 0 })
-        end,
-    }
 end
 
 ---@class Finder.RipgrepFuzzy: Finder.FuzzyOpts
@@ -339,41 +477,112 @@ function M.ripgrep_fuzzy(opts)
     end)
 end
 
+function M.live_ripgrep(opts)
+end
+
+function M.diagnostics(opts)
+    opts = opts or {}
+    local diags = vim.diagnostic.get(opts.buf, {})
+    local entries = {}
+    for _, diag in ipairs(diags) do
+        local filename = vim.api.nvim_buf_get_name(diag.bufnr)
+        local severity = diag.severity
+        severity = type(severity) == "number" and vim.diagnostic.severity[severity] or severity
+        table.insert(entries, {
+            display = string.format("[%s] %s %s", severity, require("nvim-finder.path").shorten(filename), diag.message),
+            score = 0,
+            data = {
+                filename = filename,
+                line = diag.lnum,
+            }
+        })
+    end
+    opts[1] = entries
+    opts[2] = function(e)
+        vim.cmd.edit(e.filename)
+        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+    end
+
+    M.floating_fuzzy(opts)
+end
+
 ---@class Finder.BuffersOpts: Finder.FuzzyOpts
 ---@param opts Finder.BuffersOpts
 function M.buffers(opts)
     opts = opts or {}
+    local buffers = {}
+    local current_buf = vim.api.nvim_get_current_buf()
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        local keep = (opts.hidden or vim.bo[buf].buflisted)
+            and (opts.unloaded or vim.api.nvim_buf_is_loaded(buf))
+            and (opts.current or buf ~= current_buf)
+            and (opts.nofile or vim.bo[buf].buftype ~= "nofile")
+            and (not opts.modified or vim.bo[buf].modified)
+        if keep then
+            local name = vim.api.nvim_buf_get_name(buf)
+            if name == "" then
+                name = "[No Name]" .. (vim.bo[buf].filetype ~= "" and " " .. vim.bo[buf].filetype or "")
+            end
+            table.insert(buffers, { display = name, data = buf, score = 0 })
+        end
+    end
+    opts[1] = buffers
+    opts[2] = function(e)
+        vim.api.nvim_set_current_buf(e)
+    end
 
-    M.floating_fuzzy {
-        title = opts.title or "Buffers",
-        require("nvim-finder.source.vim").buffers(opts),
-        function(e)
-            vim.api.nvim_set_current_buf(e)
-        end,
-    }
+
+    M.floating_fuzzy(opts)
 end
 
 ---@class Finder.HelpTagsOpts: Finder.FuzzyOpts
 function M.helptags(opts)
     opts = opts or {}
-    require("nvim-finder.fuzzy") {
-        require("nvim-finder.source.vim").helptags(),
-        function(e)
-            vim.cmd.help(e)
-        end,
-    }
+    local help_tags = {}
+    -- Get all runtime paths
+    local rtp = vim.api.nvim_list_runtime_paths()
+    for _, path in ipairs(rtp) do
+        local tagfile = path .. "/doc/tags"
+        local f = io.open(tagfile, "r")
+        if f then
+            for line in f:lines() do
+                local tag = line:match("^([^\t]+)")
+                if tag then
+                    table.insert(help_tags, { data = tag, display = tag, score = 0 })
+                end
+            end
+            f:close()
+        end
+    end
+    opts[1] = help_tags
+
+    opts[2] = function(e)
+        vim.cmd.help(e)
+    end
+
+    M.floating_fuzzy(opts)
 end
 
 ---@class Finder.GitFilesOpts: Finder.FuzzyOpts
 function M.git_files(opts)
     opts = opts or {}
+    opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), '.git')
+    opts[1] = read_output_by_line("git",
+        { "ls-files" },
+        opts.cwd,
+        function(line)
+            local path = line
+            -- if opts.shorten_paths then
+            --     path = require("nvim-finder.path").shorten(path)
+            -- end
+            return { data = line, score = 0, display = path }
+        end)
 
-    M.floating_fuzzy {
-        require("nvim-finder.source.git").files(opts),
-        function(e)
-            vim.cmd.edit(e)
-        end
-    }
+    opts[2] = function(e)
+        vim.cmd.edit(e)
+    end
+
+    M.floating_fuzzy(opts)
 end
 
 ---@class Finder.OldFilesOpts: Finder.FuzzyOpts
@@ -392,11 +601,68 @@ function M.oldfiles(opts)
     M.floating_fuzzy(opts)
 end
 
+local function make_display_from_lsp_result(filename, sym, line)
+    return string.format(
+        "[%s] %s",
+        sym.kind,
+        sym.name
+    )
+end
+
+
 ---@class Finder.LspDocumentSymbolsOpts: Finder.FuzzyOpts
 function M.lsp_document_symbols(opts)
     opts = opts or {}
+    opts.buf = opts.buf or vim.api.nvim_get_current_buf()
 
-    opts[1] = require("nvim-finder.source.lsp").document_symbols(vim.api.nvim_get_current_buf())
+    opts[1] = function(callback)
+        local params = { textDocument = vim.lsp.util.make_text_document_params(opts.buf) }
+
+        vim.lsp.buf_request_all(opts.buf, 'textDocument/documentSymbol', params, function(results)
+            local entries = {}
+
+            local function flatten(symbols)
+                for _, sym in ipairs(symbols) do
+                    local pos = sym.selectionRange or sym.range
+                    local line = pos and pos.start.line + 1 or 0
+                    local filename = vim.api.nvim_buf_get_name(opts.buf)
+
+                    table.insert(entries, {
+                        data = { filename = filename, line = line },
+                        display = make_display_from_lsp_result(filename, sym, line),
+                        score = 0,
+                    })
+
+                    if sym.children then
+                        flatten(sym.children)
+                    end
+                end
+            end
+
+            for _, result in pairs(results) do
+                local symbols = result.result or {}
+
+                if symbols[1] and symbols[1].location then
+                    -- SymbolInformation[]
+                    for _, sym in ipairs(symbols) do
+                        local uri = sym.location.uri
+                        local line = sym.location.range.start.line + 1
+                        local filename = vim.uri_to_fname(uri)
+
+                        table.insert(entries, {
+                            data = { filename = filename, line = line },
+                            display = make_display_from_lsp_result(filename, sym, line),
+                            score = 0,
+                        })
+                    end
+                else
+                    flatten(symbols)
+                end
+            end
+
+            callback(entries)
+        end)
+    end
     opts[2] = function(e)
         vim.cmd.edit(e.filename)
         vim.api.nvim_win_set_cursor(0, { e.line, 0 })
@@ -408,12 +674,50 @@ end
 ---@class Finder.LspWorkspaceSymbolsOpts: Finder.FuzzyOpts
 function M.lsp_workspace_symbols(opts)
     opts = opts or {}
+    opts.buf = opts.buf or vim.api.nvim_get_current_buf()
 
     opts.live = true
-    opts[1] = require("nvim-finder.source.lsp").workspace_symbols(vim.api.nvim_get_current_buf())
+    opts[1] = function(callback, query)
+        local params = { query = query or "" }
+
+        vim.lsp.buf_request_all(opts.buf, 'workspace/symbol', params, function(results)
+            local entries = {}
+
+            -- Check if we got any results or errors
+            if not results or next(results) == nil then
+                -- No results, call callback with empty table to avoid hanging
+                callback(entries)
+                return
+            end
+
+            for client_id, result in pairs(results) do
+                if result.error then
+                    -- Log the error if present, but continue processing other results
+                    vim.notify(
+                        "LSP workspace/symbol error from client " .. client_id .. ": " .. result.error.message,
+                        vim.log.levels.WARN)
+                end
+
+                local symbols = result.result or {}
+
+                for _, sym in ipairs(symbols) do
+                    local uri = sym.location.uri
+                    local line = sym.location.range.start.line + 1
+                    local filename = vim.uri_to_fname(uri)
+                    table.insert(entries, {
+                        data = { filename = filename, line = line },
+                        display = make_display_from_lsp_result(filename, sym, line),
+                        score = 0,
+                    })
+                end
+            end
+
+            callback(entries)
+        end)
+    end
     opts[2] = function(e)
         vim.cmd.edit(e.filename)
-        vim.api.nvim_win_set_cursor(0, { e.data.line, 0 })
+        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
     end
 
 
