@@ -41,7 +41,12 @@ return function(opts)
                 local lines = vim.split(data, "\n")
                 for _, line in ipairs(lines) do
                     if line ~= "" then
-                        table.insert(results, { entry = line, score = 0, display = line:sub(#opts.path + 1) })
+                        table.insert(results,
+                            {
+                                data = { filename = line },
+                                score = 0,
+                                display = line:sub(#opts.path + 1)
+                            })
                     end
                 end
 

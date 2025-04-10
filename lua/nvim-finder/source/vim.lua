@@ -12,7 +12,7 @@ function M.helptags()
             for line in f:lines() do
                 local tag = line:match("^([^\t]+)")
                 if tag then
-                    table.insert(help_tags, { entry = tag, display = tag, score = 0 })
+                    table.insert(help_tags, { data = tag, display = tag, score = 0 })
                 end
             end
             f:close()
@@ -37,7 +37,7 @@ function M.buffers(opts)
             if name == "" then
                 name = "[No Name]" .. (vim.bo[buf].filetype ~= "" and " " .. vim.bo[buf].filetype or "")
             end
-            table.insert(buffers, { display = name, entry = buf, score = 0 })
+            table.insert(buffers, { display = name, data = buf, score = 0 })
         end
     end
 
@@ -55,7 +55,7 @@ function M.diagnostics(bufnr)
         table.insert(entries, {
             display = string.format("[%s] %s %s", severity, require("nvim-finder.path").shorten(filename), diag.message),
             score = 0,
-            entry = {
+            data = {
                 filename = filename,
                 line = diag.lnum,
             }

@@ -10,7 +10,7 @@ end
 
 ---@class Finder.FuzzyOpts
 ---@field [1] table<Finder.Entry> | fun(cb: fun(new_entry))
----@field [2] fun(selected_entry: string)
+---@field [2] fun(selected_entry: Finder.Entry)
 ---@field prompt? string
 ---@field title?  string
 ---@field padding? string
@@ -33,6 +33,16 @@ local function floating_fuzzy(opts)
     local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
     local buf_lines = {}
     local selected_item = 0
+    local get_qf_entry = opts.get_qf_entry or function(e)
+        return {
+            {
+                filename = e.data.filename,
+                lnum = e.data.line,
+                col = e.data.column,
+                text = e.display
+            }
+        }
+    end
     local include_scores = opts.include_scores ~= false
     local frame_source = {}
     local get_window_config = opts.get_window_config or function()
@@ -69,7 +79,6 @@ local function floating_fuzzy(opts)
     local view_height = window_config.height - 1
     local visible_start = 0
 
-    vim.cmd [[ startinsert ]]
 
     vim.api.nvim_create_autocmd("VimResized", {
         buffer = buf,
@@ -112,11 +121,12 @@ local function floating_fuzzy(opts)
                 opts[1](function(e)
                     update_source(e)
                 end, user_input)
+            else
+                sorting_function(user_input, source)
+                table.sort(source, function(a, b)
+                    return a.score < b.score
+                end)
             end
-            sorting_function(user_input, source)
-            table.sort(source, function(a, b)
-                return a.score < b.score
-            end)
             -- Always select the last item when input changes
             selected_item = math.max(0, #source - 1)
             -- Adjust visible_start to show the bottom
@@ -153,6 +163,9 @@ local function floating_fuzzy(opts)
             vim.hl.range(buf, hl_ns, "Visual", { highlight_line, 0 }, { highlight_line, -1 })
         end
 
+        vim.schedule(function()
+            vim.cmd [[ startinsert ]]
+        end)
         should_update = false
     end
 
@@ -184,10 +197,17 @@ local function floating_fuzzy(opts)
 
     local function accept()
         if not source[selected_item + 1] then return end
-        local item = source[selected_item + 1].entry
+        local item = source[selected_item + 1].data
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         quit()
         on_accept(item)
+    end
+
+    local function export_to_qf()
+        for _, e in ipairs(source) do
+            vim.fn.setqflist(get_qf_entry(e), 'a')
+        end
+        quit()
     end
 
     vim.keymap.set({ "n", "i" }, "<C-p>", up, { buffer = buf })
@@ -198,6 +218,7 @@ local function floating_fuzzy(opts)
     vim.keymap.set({ "n", "i" }, "<C-d>", page_down, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<CR>", accept, { buffer = buf })
     vim.keymap.set({ "n", "i" }, "<C-c>", quit, { buffer = buf })
+    vim.keymap.set({ "n", "i" }, "<C-q>", export_to_qf, { buffer = buf })
 
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         buffer = buf,

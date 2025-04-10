@@ -48,7 +48,7 @@ function M.files(opts)
                         if opts.shorten_paths then
                             path = require("nvim-finder.path").shorten(path)
                         end
-                        table.insert(results, { entry = line, score = 0, display = path })
+                        table.insert(results, { data = line, score = 0, display = path })
                     end
                 end
 

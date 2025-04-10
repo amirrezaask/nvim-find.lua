@@ -1,6 +1,11 @@
 -- vim.opt.runtimepath:append("~/src/nvim-finder")
 local M = {}
 
+---@class Finder.Entry
+---@field data any
+---@field score number
+---@field display string
+
 function M.__reload()
     package.loaded["nvim-finder"] = nil
     package.loaded["nvim-finder.log"] = nil
@@ -11,11 +16,6 @@ function M.__reload()
     package.loaded["nvim-finder.fuzzy"] = nil
 end
 
----@class Finder.Entry
----@field entry string
----@field score number
----@field display string
-
 ---@class Finder.FilesOpts: Finder.FuzzyOpts
 ---@field path string path to set as CWD, if not set it will be root of git repository.
 ---@param opts Finder.FilesOpts
@@ -25,6 +25,8 @@ function M.files(opts)
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = opts.title or ('Files ' .. opts.path)
     opts.prompt = 'Files '
+    opts.width_ratio = 0.55
+    opts.height_ratio = 0.85
 
     if vim.fn.executable("find") == 1 then
         opts[1] = require("nvim-finder.source.find")(opts)
@@ -33,7 +35,7 @@ function M.files(opts)
     end
 
     opts[2] = function(e)
-        vim.cmd.edit(e)
+        vim.cmd.edit(e.filename)
     end
 
     require("nvim-finder.fuzzy")(opts)
@@ -135,7 +137,7 @@ function M.oldfiles(opts)
     opts[1] = {}
 
     for _, v in ipairs(vim.v.oldfiles) do
-        table.insert(opts[1], { entry = v, display = v, score = 0 })
+        table.insert(opts[1], { data = v, display = v, score = 0 })
     end
 
     opts[2] = function(e)
@@ -166,7 +168,7 @@ function M.lsp_workspace_symbols(opts)
     opts[1] = require("nvim-finder.source.lsp").workspace_symbols(vim.api.nvim_get_current_buf())
     opts[2] = function(e)
         vim.cmd.edit(e.filename)
-        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+        vim.api.nvim_win_set_cursor(0, { e.data.line, 0 })
     end
 
 
@@ -179,7 +181,7 @@ function M.colorschemes(opts)
     local colorschemes = vim.fn.getcompletion("", "color")
     local entries = {}
     for _, c in ipairs(colorschemes) do
-        table.insert(entries, { display = c, entry = c, score = 0 })
+        table.insert(entries, { display = c, data = c, score = 0 })
     end
 
     opts[1] = entries

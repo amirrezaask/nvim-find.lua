@@ -73,7 +73,9 @@ local function recursive_files(opts)
                                 display_path = shorten_path(display_path)
                             end
                             table.insert(files, {
-                                entry = entry_path,
+                                data = {
+                                    filename = entry_path,
+                                },
                                 display = display_path,
                                 score = 0
                             })

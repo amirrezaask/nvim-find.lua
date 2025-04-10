@@ -1,10 +1,3 @@
----@class Finder.Ripgrep.Entry
----@field line number
----@field column number
----@field match string
----@field file string
-
-
 local log = require("nvim-finder.log")
 
 local function parse_ripgrep_line(line)
@@ -71,7 +64,7 @@ local function rg_fuzzy(opts)
                     if line ~= "" then
                         local e = parse_ripgrep_line(line)
                         if e ~= nil then
-                            table.insert(result, { entry = e, score = 0, display = e.file .. ": " .. vim.trim(e.match) })
+                            table.insert(result, { data = e, score = 0, display = e.file .. ": " .. vim.trim(e.match) })
                         end
                     end
                 end
