@@ -1,4 +1,4 @@
-# Nvim-Finder
+# Nvim-Find
 A collection of straightforward finders for Neovim, designed with simplicity in mind.
 
 ## Available Finders

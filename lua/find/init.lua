@@ -16,7 +16,7 @@
 
 local home = vim.env.HOME or ""
 local M = {}
-local scoring = require("nvim-find.scoring")
+local scoring = require("find.scoring")
 
 function M.floating_fuzzy(opts)
     assert(opts, "opts is required")
@@ -246,8 +246,8 @@ function M.floating_fuzzy(opts)
     local function accept()
         if not source[selected_item + 1] then return end
         local item = source[selected_item + 1].data
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
         quit()
+        vim.print(source[selected_item + 1])
         on_accept(item)
     end
 
@@ -569,7 +569,6 @@ function M.files(opts)
     end
 
     opts[2] = function(e)
-        vim.print(e)
         vim.cmd.edit(e.filename)
     end
 
@@ -682,30 +681,29 @@ function M.ripgrep_fuzzy(opts)
     end)
 end
 
-function M.live_ripgrep(opts)
-end
-
 function M.diagnostics(opts)
     opts = opts or {}
     local diags = vim.diagnostic.get(opts.buf, {})
     local entries = {}
+    vim.print(diags)
     for _, diag in ipairs(diags) do
         local filename = vim.api.nvim_buf_get_name(diag.bufnr)
         local severity = diag.severity
         severity = type(severity) == "number" and vim.diagnostic.severity[severity] or severity
         table.insert(entries, {
-            display = string.format("[%s] %s %s", severity, require("nvim-finder.path").shorten(filename), diag.message),
+            display = string.format("[%s] %s %s", severity, shorten_path(filename), diag.message),
             score = 0,
             data = {
                 filename = filename,
-                line = diag.lnum,
+                line = diag.end_lnum,
+                col = diag.end_col
             }
         })
     end
     opts[1] = entries
     opts[2] = function(e)
         vim.cmd.edit(e.filename)
-        vim.api.nvim_win_set_cursor(0, { e.line, 0 })
+        vim.api.nvim_win_set_cursor(0, { e.line, e.col })
     end
 
     M.floating_fuzzy(opts)
