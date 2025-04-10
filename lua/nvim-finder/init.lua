@@ -66,7 +66,7 @@ function M.floating_fuzzy(opts)
             col = col,
             style = "minimal",
             zindex = 100, -- Ensure it’s above other windows
-            -- border = 'rounded'
+            border = 'rounded'
         }
     end
 
@@ -255,7 +255,7 @@ end
 
 function M.__reload()
     package.loaded["nvim-finder"] = nil
-    package.loaded["nvim-finder.alg.fzy"] = nil
+    package.loaded["nvim-finder.sorting"] = nil
 end
 
 local function read_output_by_line(program, args, cwd, line_to_entry)
@@ -510,7 +510,8 @@ local function parse_ripgrep_line(line)
 end
 
 
-function M.ripgrep_qf(cwd)
+function M.ripgrep_qf(opts)
+    opts = opts or {}
     vim.ui.input({ prompt = "Ripgrep> " }, function(s)
         if s == nil then return end
         opts.cwd = opts.cwd or vim.fs.root(0, '.git') or vim.fn.expand("%:p:h")
