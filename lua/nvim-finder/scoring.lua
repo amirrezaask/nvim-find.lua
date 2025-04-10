@@ -2,7 +2,7 @@ local M = {}
 
 ---@param query string
 ---@param collection table<Finder.Entry>
-function M.fzfV2(query, collection)
+function M.fzf(query, collection)
     local function get_matched_score(pattern, str)
         local function normalize_rune(r)
             if r >= 65 and r <= 90 then -- A-Z

@@ -42,7 +42,7 @@ function M.floating_fuzzy(opts)
     local prompt = (opts.prompt or " ") .. prompt_char
     local source = {}
     local padding = opts.padding or '  '
-    local scoring_function = opts.scoring_function or scoring.ngram_indexing
+    local scoring_function = opts.scoring_function or scoring.fzy
     local buf_lines = {}
     local selected_item = 0
     local get_qf_entry = opts.get_qf_entry or function(e)
@@ -130,6 +130,7 @@ function M.floating_fuzzy(opts)
                     update_source(e)
                 end, user_input)
             else
+                local t0 = vim.uv.hrtime()
                 scoring_function(user_input, source)
                 table.sort(source, function(a, b)
                     if direction == 'b2t' then
@@ -138,6 +139,8 @@ function M.floating_fuzzy(opts)
                         return a.score > b.score
                     end
                 end)
+                local t1 = vim.uv.hrtime()
+                print("#" .. #source, "cost(ms):", (t1 - t0) / 10e6)
             end
             if direction == 'b2t' then
                 selected_item = #source > 0 and #source - 1 or 0
