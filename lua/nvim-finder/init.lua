@@ -15,6 +15,7 @@
 ---@field live? boolean
 
 local M = {}
+local sorting = require("nvim-finder.sorting")
 
 function M.floating_fuzzy(opts)
     assert(opts, "opts is required")
@@ -37,7 +38,7 @@ function M.floating_fuzzy(opts)
     local prompt = (opts.prompt or " ") .. prompt_char
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or require('nvim-finder.alg.ngram-indexing')
+    local sorting_function = opts.sorting_function or sorting.ngram_indexing
     local buf_lines = {}
     local selected_item = 0
     local get_qf_entry = opts.get_qf_entry or function(e)
@@ -301,6 +302,53 @@ local function read_output_by_line(program, args, cwd, line_to_entry)
         end)
     end
 end
+local function shorten_path(path)
+    local THRESHOLD = 80
+    if not path or path == "" then
+        return ""
+    end
+
+    local parts = {}
+    for part in path:gmatch("[^/]+") do
+        table.insert(parts, part)
+    end
+
+    local is_absolute = path:sub(1, 1) == "/"
+
+    if #parts <= 1 then
+        return path
+    end
+
+    -- Build the shortened path
+    local result = {}
+    for i, part in ipairs(parts) do
+        if i >= #parts - 1 then
+            table.insert(result, part)
+        else
+            table.insert(result, part:sub(1, 1))
+        end
+    end
+
+    -- Join components and add leading slash if original was absolute
+    local shortened = table.concat(result, "/")
+    if is_absolute then
+        shortened = "/" .. shortened
+    end
+
+    if #path < THRESHOLD then return path end
+
+    return shortened
+end
+
+
+local function expand(path)
+    local success, result = pcall(vim.fn.expand, path)
+    if not success then
+        return nil
+    end
+    return result
+end
+
 
 ---@class Finder.FilesOpts: Finder.FuzzyOpts
 ---@field path string path to set as CWD, if not set it will be root of git repository.
@@ -317,7 +365,6 @@ function M.files(opts)
     local function luv_find(opts)
         opts = opts or {}
 
-        local shorten_path = require("nvim-finder.path").shorten
         local expand = require("nvim-finder.path").expand
         local uv = vim.loop
         opts.path = expand(opts.path) -- nil check
