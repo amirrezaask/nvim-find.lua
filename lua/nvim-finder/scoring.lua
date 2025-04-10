@@ -269,7 +269,7 @@ function M.fzy(query, collection)
     --   {int,...}: indices, where `indices[n]` is the location of the `n`th
     --     character of `needle` in `haystack`.
     --   number: the same matching score returned by `score`
-    local function positions(needle, haystack, case_sensitive)
+    local function get_positions(needle, haystack, case_sensitive)
         local n = string.len(needle)
         local m = string.len(haystack)
 
@@ -323,7 +323,7 @@ function M.fzy(query, collection)
 
         for i, line in ipairs(haystacks) do
             if has_match(needle, line, case_sensitive) then
-                local p, s = positions(needle, line, case_sensitive)
+                local p, s = get_positions(needle, line, case_sensitive)
                 table.insert(result, { i, p, s })
             end
         end
@@ -338,33 +338,33 @@ function M.fzy(query, collection)
     --  - a `needle` or `haystack` larger than than `get_max_length`,
     -- the `score` function will return this exact value, which can be used as a
     -- sentinel. This is the lowest possible score.
-    function get_score_min() return SCORE_MIN end
+    local function get_score_min() return SCORE_MIN end
 
     -- The score returned for exact matches. This is the highest possible score.
-    function get_score_max() return SCORE_MAX end
+    local function get_score_max() return SCORE_MAX end
 
     -- The maximum size for which `fzy` will evaluate scores.
-    function get_max_length() return MATCH_MAX_LENGTH end
+    local function get_max_length() return MATCH_MAX_LENGTH end
 
     -- The minimum score returned for normal matches.
     --
     -- For matches that don't return `get_score_min`, their score will be greater
     -- than than this value.
-    function get_score_floor() return MATCH_MAX_LENGTH * SCORE_GAP_INNER end
+    local function get_score_floor() return MATCH_MAX_LENGTH * SCORE_GAP_INNER end
 
     -- The maximum score for non-exact matches.
     --
     -- For matches that don't return `get_score_max`, their score will be less than
     -- this value.
-    function get_score_ceiling() return MATCH_MAX_LENGTH * SCORE_MATCH_CONSECUTIVE end
+    local function get_score_ceiling() return MATCH_MAX_LENGTH * SCORE_MATCH_CONSECUTIVE end
 
     -- The name of the currently-running implmenetation, "lua" or "native".
-    function get_implementation_name() return "lua" end
+    local function get_implementation_name() return "lua" end
 
     if query == "" then return collection end
     for i, entry in ipairs(collection) do
         if has_match(query, entry.display, CASE_SENSITIVE) then
-            local _, s = positions(query, entry.display, CASE_SENSITIVE)
+            local _, s = get_positions(query, entry.display, CASE_SENSITIVE)
             collection[i].score = s
             collection[i].matched = true
         else

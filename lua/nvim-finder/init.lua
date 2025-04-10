@@ -15,7 +15,7 @@
 ---@field live? boolean
 
 local M = {}
-local sorting = require("nvim-finder.sorting")
+local scoring = require("nvim-finder.scoring")
 
 function M.floating_fuzzy(opts)
     assert(opts, "opts is required")
@@ -32,13 +32,14 @@ function M.floating_fuzzy(opts)
 
     local REFRESH_MS = 15 -- every 15 milliseconds we refresh fuzzy window if there is a need for updating.
     local should_update = false
+    local direction = opts.direction or 'b2t' or 'b2t'
 
     local user_input = ""
     local prompt_char = opts.prompt_char or '❯ '
     local prompt = (opts.prompt or " ") .. prompt_char
     local source = {}
     local padding = opts.padding or '  '
-    local sorting_function = opts.sorting_function or sorting.ngram_indexing
+    local scoring_function = opts.scoring_function or scoring.ngram_indexing
     local buf_lines = {}
     local selected_item = 0
     local get_qf_entry = opts.get_qf_entry or function(e)
@@ -130,9 +131,13 @@ function M.floating_fuzzy(opts)
                     update_source(e)
                 end, user_input)
             else
-                sorting_function(user_input, source)
+                scoring_function(user_input, source)
                 table.sort(source, function(a, b)
-                    return a.score < b.score
+                    if direction == 'b2t' then
+                        return a.score < b.score
+                    elseif direction == 't2b' then
+                        return a.score > b.score
+                    end
                 end)
             end
             -- Always select the last item when input changes
