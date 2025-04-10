@@ -60,7 +60,7 @@ function M.floating_fuzzy(opts)
     local get_window_config = opts.get_window_config or function()
         local width = math.floor(vim.o.columns * (opts.width_ratio or 0.9))
         local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
-        local row = math.floor(vim.o.lines - height)
+        local row = math.floor((vim.o.lines - height) / 2)
         local col = math.floor((vim.o.columns - width) / 2)
         return {
             relative = "editor",
@@ -70,6 +70,7 @@ function M.floating_fuzzy(opts)
             col = col,
             style = "minimal",
             zindex = 100,
+            border = 'rounded'
         }
     end
 
@@ -438,8 +439,8 @@ function M.files(opts)
     opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), ".git") or vim.fn.getcwd()
     opts.title = opts.title or ('Files ' .. opts.path)
     opts.prompt = ''
-    -- opts.width_ratio = 0.55
-    -- opts.height_ratio = 0.85
+    opts.width_ratio = 0.60
+    opts.height_ratio = 0.60
 
     local function luv_find(opts)
         opts = opts or {}
