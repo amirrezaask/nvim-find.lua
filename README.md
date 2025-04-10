@@ -13,9 +13,11 @@ A collection of straightforward finders for Neovim, designed with simplicity in 
 - `oldfiles` - Recent files
 - `ripgrep_fuzzy` - Fuzzy search with ripgrep
 - `ripgrep_qf` - Ripgrep with quickfix list
+- `Interactive filesystem navigator` TBA
+- `Live ripgrep buffer` TBA
 
 ## Why Use Nvim-Finder?
-You might find more feature-rich alternatives in [snacks.nvim](https://github.com/folke/snacks.nvim) or [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), which have seen more development time. Nvim-Finder was created primarily for my personal use cases—like disabling preview buffers, which I find unhelpful, and also this was a learning project for me to learn both about how to manage UIs and fast searching text in real time.
+You might find more feature-rich alternatives in [snacks.nvim](https://github.com/folke/snacks.nvim) or [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), which have seen more development time. Nvim-Finder was created primarily for my personal use cases which is the reason it doesn't have many features like preview buffers, which I find unhelpful. Also this was a learning project for me to learn both about how to manage UIs and fast searching text in real time.
 
 ## Default Keybindings
 | Keybinding         | Action          |
@@ -26,6 +28,3 @@ You might find more feature-rich alternatives in [snacks.nvim](https://github.co
 | `<C-d>`            | Page down       |
 | `<C-u>`            | Page up         |
 
-## TODO
-- Interactive filesystem navigator
-- Live ripgrep buffer (maybe?)
