@@ -78,6 +78,7 @@ function M.floating_fuzzy(opts)
     local buf = vim.api.nvim_create_buf(false, true)
     local window_config = get_window_config()
     local win = vim.api.nvim_open_win(buf, true, window_config)
+    vim.b[buf].completion = false
     vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = buf })
     vim.api.nvim_set_option_value('wrap', false, { win = win }) -- Keep wrap off, but handle long lines below
     vim.api.nvim_set_option_value('ul', -1, { buf = buf })
