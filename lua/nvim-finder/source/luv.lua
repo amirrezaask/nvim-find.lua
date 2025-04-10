@@ -1,7 +1,6 @@
 local uv = vim.loop
 local shorten_path = require("nvim-finder.path").shorten
 local expand = require("nvim-finder.path").expand
-local log = require("nvim-finder.log")
 
 local function recursive_files(opts)
     opts = opts or {}
@@ -34,7 +33,7 @@ local function recursive_files(opts)
     return function(cb)
         uv.fs_opendir(opts.path, function(err, dir)
             if err then
-                log("error reading directory", err)
+                -- log("error reading directory", err)
                 return
             end
 
@@ -42,7 +41,7 @@ local function recursive_files(opts)
                 uv.fs_readdir(dir, function(err, entries)
                     if err then
                         uv.fs_closedir(dir)
-                        log("error in reading directory", err)
+                        -- log("error in reading directory", err)
                         return
                     end
 

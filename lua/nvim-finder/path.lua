@@ -40,23 +40,10 @@ end
 local function expand(path)
     local success, result = pcall(vim.fn.expand, path)
     if not success then
-        require("nvim-finder.log")(result)
         return nil
     end
     return result
 end
-
--- local test_paths = {
---     "/home/user/documents/project/file.txt",
---     "/usr/local/bin/script.sh",
---     "/var/www/html/index.html",
---     "relative/path/to/file.lua"
--- }
---
--- For testing individual shortening
--- for _, path in ipairs(test_paths) do
---     print(string.format("%s -> %s", path, shorten_path(path)))
--- end
 
 return {
     shorten = shorten_path,

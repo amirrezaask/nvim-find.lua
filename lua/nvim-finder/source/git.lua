@@ -1,6 +1,4 @@
 local M = {}
-local log = require("nvim-finder.log")
-
 function M.files(opts)
     return function(cb)
         opts.path = opts.path or vim.fs.root(vim.fn.getcwd(), '.git')
@@ -24,18 +22,18 @@ function M.files(opts)
 
         uv.read_start(stderr, function(err, data)
             if err then
-                log("stderr ", err)
+                -- log("stderr ", err)
                 return
             end
             if data then
-                log("stderr ", data)
+                -- log("stderr ", data)
             end
         end)
 
         uv.read_start(stdout, function(err, data)
             if err then
                 vim.schedule(function()
-                    log(err)
+                    -- log(err)
                 end)
                 return
             end

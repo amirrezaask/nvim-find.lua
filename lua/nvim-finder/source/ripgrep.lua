@@ -1,5 +1,3 @@
-local log = require("nvim-finder.log")
-
 local function parse_ripgrep_line(line)
     local filepath, lineno, col, match = line:match("^.-%s+(.-):(%d+):(%d+):(.*)")
     if not filepath then
@@ -8,14 +6,14 @@ local function parse_ripgrep_line(line)
 
     if filepath and lineno and col and match then
         return {
-            file = filepath,
+            filename = filepath,
             line = tonumber(lineno),
-            column = tonumber(col),
+            col = tonumber(col),
             match = match,
         }
     end
 
-    log("Could not parse line ", line)
+    -- log("Could not parse line ", line)
     return nil
 end
 
@@ -42,18 +40,18 @@ local function rg_fuzzy(opts)
 
         uv.read_start(stderr, function(err, data)
             if err then
-                log("stderr ", err)
+                -- log("stderr ", err)
                 return
             end
             if data then
-                log("stderr ", data)
+                -- log("stderr ", data)
             end
         end)
 
         uv.read_start(stdout, function(err, data)
             if err then
                 vim.schedule(function()
-                    log(err)
+                    -- log(err)
                 end)
                 return
             end
@@ -64,7 +62,8 @@ local function rg_fuzzy(opts)
                     if line ~= "" then
                         local e = parse_ripgrep_line(line)
                         if e ~= nil then
-                            table.insert(result, { data = e, score = 0, display = e.file .. ": " .. vim.trim(e.match) })
+                            table.insert(result,
+                                { data = e, score = 0, display = e.filename .. ": " .. vim.trim(e.match) })
                         end
                     end
                 end
@@ -99,18 +98,18 @@ local function rg_qf(opts)
 
     uv.read_start(stderr, function(err, data)
         if err then
-            log("stderr ", err)
+            -- log("stderr ", err)
             return
         end
         if data then
-            log("stderr ", data)
+            -- log("stderr ", data)
         end
     end)
 
     uv.read_start(stdout, function(err, data)
         if err then
             vim.schedule(function()
-                log(err)
+                -- log(err)
             end)
             return
         end
@@ -122,7 +121,7 @@ local function rg_qf(opts)
                     if e ~= nil then
                         vim.schedule(function()
                             local filename = vim.fs.joinpath(path, e.file)
-                            vim.log(filename)
+                            -- vim.log(filename)
                             vim.fn.setqflist(
                                 { { filename = filename, lnum = e.line, col = e.column, text = e.match } },
                                 'a')
@@ -133,20 +132,6 @@ local function rg_qf(opts)
         end
     end)
 end
-
-
--- rg {
---     query = "session",
---     cwd = "~/src/doctor/tweety",
--- } (function(e)
---         vim.log(e.entry)
---     end)
-
-
--- rg_qf {
---     query = "session",
---     cwd = "~/src/doctor/tweety"
--- }
 
 
 return {
