@@ -267,6 +267,7 @@ local function read_output_by_line(program, args, cwd, line_to_entry)
 
         handle = uv.spawn(program, {
             args = args,
+            cwd = cwd,
             stdio = { nil, stdout, stderr },
         }, function(code, signal)
             stdout:read_stop()
@@ -294,7 +295,10 @@ local function read_output_by_line(program, args, cwd, line_to_entry)
                 local lines = vim.split(data, "\n")
                 for _, line in ipairs(lines) do
                     if line ~= "" then
-                        table.insert(results, line_to_entry(line))
+                        local entry = line_to_entry(line)
+                        if entry ~= nil then
+                            table.insert(results, entry)
+                        end
                     end
                 end
                 cb(results)
@@ -339,16 +343,6 @@ local function shorten_path(path)
 
     return shortened
 end
-
-
-local function expand(path)
-    local success, result = pcall(vim.fn.expand, path)
-    if not success then
-        return nil
-    end
-    return result
-end
-
 
 ---@class Finder.FilesOpts: Finder.FuzzyOpts
 ---@field path string path to set as CWD, if not set it will be root of git repository.
@@ -496,13 +490,83 @@ function M.files(opts)
     M.floating_fuzzy(opts)
 end
 
+local function parse_ripgrep_line(line)
+    local filepath, lineno, col, match = line:match("^.-%s+(.-):(%d+):(%d+):(.*)")
+    if not filepath then
+        filepath, lineno, col, match = line:match("^(.-):(%d+):(%d+):(.*)")
+    end
+
+    if filepath and lineno and col and match then
+        return {
+            filename = filepath,
+            line = tonumber(lineno),
+            col = tonumber(col),
+            match = match,
+        }
+    end
+
+    -- log("Could not parse line ", line)
+    return nil
+end
+
+
 function M.ripgrep_qf(cwd)
     vim.ui.input({ prompt = "Ripgrep> " }, function(s)
         if s == nil then return end
-        require("nvim-finder.source.ripgrep").qf({
-            query = s,
-            cwd = cwd or vim.fn.getcwd(),
-        })
+        opts.cwd = opts.cwd or vim.fs.root(0, '.git') or vim.fn.expand("%:p:h")
+        local uv = vim.uv
+        local handle
+        local stdout = uv.new_pipe(false)
+        local stderr = uv.new_pipe(false)
+        local path = vim.fn.expand(opts.cwd)
+
+        handle = uv.spawn("rg", {
+            args = { "--color", "never", "--column", "-n", "--no-heading", s },
+            cwd = path,
+            stdio = { nil, stdout, stderr },
+        }, function(code, signal)
+            stdout:read_stop()
+            stdout:close()
+            handle:close()
+            vim.schedule(function()
+                vim.cmd.copen()
+            end)
+        end)
+
+        uv.read_start(stderr, function(err, data)
+            if err then
+                -- log("stderr ", err)
+                return
+            end
+            if data then
+                -- log("stderr ", data)
+            end
+        end)
+
+        uv.read_start(stdout, function(err, data)
+            if err then
+                vim.schedule(function()
+                    -- log(err)
+                end)
+                return
+            end
+            if data then
+                local lines = vim.split(data, "\n")
+                for _, line in ipairs(lines) do
+                    if line ~= "" then
+                        local e = parse_ripgrep_line(line)
+                        if e ~= nil then
+                            vim.schedule(function()
+                                local filename = vim.fs.joinpath(path, e.file)
+                                vim.fn.setqflist(
+                                    { { filename = filename, lnum = e.line, col = e.column, text = e.match } },
+                                    'a')
+                            end)
+                        end
+                    end
+                end
+            end
+        end)
     end)
 end
 
@@ -513,10 +577,17 @@ function M.ripgrep_fuzzy(opts)
 
     vim.ui.input({ prompt = opts.prompt or "Fuzzy Ripgrep> " }, function(s)
         if s == nil then return end
-        opts[1] = require("nvim-finder.source.ripgrep").fuzzy({ query = s })
+        opts[1] = read_output_by_line("rg", { "--color", "never", "--column", "-n", "--no-heading", s },
+            opts.cwd, function(line)
+                if line == "" then return {} end
+                local e = parse_ripgrep_line(line)
+                if e == nil then return nil end
+
+                return { data = e, score = 0, display = e.filename .. ": " .. vim.trim(e.match) }
+            end)
         opts[2] = function(e)
             vim.cmd.edit(e.file)
-            vim.api.nvim_win_set_cursor(0, { e.line, e.column })
+            vim.api.nvim_win_set_cursor(0, { e.line, e.col })
         end
         opts.title = opts.title or ('Rg ' .. opts.cwd)
 
