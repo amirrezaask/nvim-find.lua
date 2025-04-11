@@ -61,7 +61,7 @@ function M.floating_fuzzy(opts)
 	local get_window_config = opts.get_window_config
 		or function()
 			local width = math.floor(vim.o.columns * (opts.width_ratio or 0.9))
-			local height = math.floor(vim.o.lines * (opts.height_ratio or 0.65))
+			local height = math.floor(vim.o.lines * (opts.height_ratio or 0.8))
 			local row = math.floor((vim.o.lines - height))
 			local col = math.floor((vim.o.columns - width) / 2)
 			return {
@@ -100,6 +100,7 @@ function M.floating_fuzzy(opts)
 	})
 
 	local hl_ns = vim.api.nvim_create_namespace("nvim-finder.fuzzy")
+	local update_source
 
 	local function update()
 		if not should_update then
@@ -154,11 +155,7 @@ function M.floating_fuzzy(opts)
 			for _, v in ipairs(frame_source) do
 				local score_prefix = include_scores and string.format("%X ", v.score) or ""
 				local line = padding .. score_prefix .. v.display
-				-- Optional truncation
-				if truncate_long_lines and #line > max_line_length then
-					line = line:sub(1, max_line_length - 3) .. "..."
-				end
-				-- Removed padding to window width to avoid truncation
+				line = line .. string.rep(" ", window_config.width - #v.display)
 				table.insert(buf_lines, line)
 			end
 			table.insert(buf_lines, prompt .. user_input)
@@ -203,7 +200,7 @@ function M.floating_fuzzy(opts)
 		should_update = false
 	end
 
-	local function update_source(entries)
+	update_source = function(entries)
 		if opts.live then
 			source = entries
 		else
@@ -297,16 +294,6 @@ function M.floating_fuzzy(opts)
 			update()
 		end,
 	})
-
-	-- local timer = vim.uv.new_timer()
-	-- timer:start(
-	-- 	10,
-	-- 	REFRESH_MS,
-	-- 	vim.schedule_wrap(function()
-	-- 		update()
-	-- 	end)
-	-- )
-
 	if type(opts[1]) == "function" then
 		opts[1](function(e)
 			update_source(e)
@@ -463,7 +450,7 @@ function M.files(opts)
 	opts.title = opts.title or ("Files " .. opts.path)
 	opts.prompt = ""
 	opts.width_ratio = 0.60
-	opts.height_ratio = 0.60
+	opts.height_ratio = 0.90
 
 	local function luv_find(opts)
 		opts = opts or {}
